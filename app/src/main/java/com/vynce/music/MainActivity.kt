@@ -44,10 +44,13 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.vynce.music.ui.screens.home.HomeScreen
 import com.vynce.music.ui.screens.home.HomeViewModel
+import com.vynce.music.ui.screens.library.LibraryScreen
 import com.vynce.music.ui.screens.player.MiniPlayer
 import com.vynce.music.ui.screens.player.PlayerScreen
 import com.vynce.music.ui.screens.player.PlayerViewModel
 import com.vynce.music.ui.theme.VynceTheme
+import com.yushosei.newpipe.extractor.NewPipe
+import com.yushosei.newpipe.util.DefaultDownloaderImpl
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -75,6 +78,15 @@ class MainActivity : ComponentActivity() {
                     ActivityResultContracts.RequestPermission()
                 ) { isGranted ->
                     hasPermission = isGranted
+                }
+
+                var isInitialized by rememberSaveable { mutableStateOf(false) }
+
+                LaunchedEffect(Unit) {
+                    if (!isInitialized) {
+                        NewPipe.init(DefaultDownloaderImpl.initDefault())
+                        isInitialized = true
+                    }
                 }
 
 // 2. Only launch if we don't already have it
@@ -160,7 +172,7 @@ fun VynceApp(onShowPlayer: () -> Unit) {
                         viewModel = homeViewModel
                     )
                     AppDestinations.SEARCH -> Text("SEARCH Screen")
-                    AppDestinations.LIBRARY -> Text("LIBRARY Screen")
+                    AppDestinations.LIBRARY -> LibraryScreen()
                     AppDestinations.SETTINGS -> Text("SETTINGS Screen")
                 }
             }

@@ -1,6 +1,5 @@
 package com.vynce.music.ui.screens.home
 
-import android.os.Bundle
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -28,13 +27,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.net.toUri
-import androidx.media3.common.MediaItem
-import androidx.media3.common.MediaMetadata
 import com.vynce.music.ui.commponents.CarouselList
 import com.vynce.music.ui.commponents.QuickPicksCarousel
 import com.vynce.music.ui.screens.player.PlayerViewModel
 import com.vynce.music.ui.theme.VynceTheme
+import com.vynce.music.utils.toMediaItem
 import com.vynce.vynceclient.models.AlbumItem
 import com.vynce.vynceclient.models.ArtistItem
 import com.vynce.vynceclient.models.PlaylistItem
@@ -233,22 +230,4 @@ fun HomeHeader() {
             )
         )
     }
-}
-
-fun SongItem.toMediaItem(): MediaItem {
-    val extras = Bundle().apply {
-        putString("album_id", album?.id)
-        putString("artist_id", artists.firstOrNull()?.id)
-    }
-    return MediaItem.Builder()
-        .setMediaId(id)
-        .setMediaMetadata(
-            MediaMetadata.Builder()
-                .setTitle(title)
-                .setArtist(artists.joinToString { it.name })
-                .setArtworkUri(thumbnail.toUri())
-                .setExtras(extras)
-                .build()
-        )
-        .build()
 }

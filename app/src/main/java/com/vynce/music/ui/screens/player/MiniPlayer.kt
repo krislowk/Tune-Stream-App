@@ -1,12 +1,12 @@
 package com.vynce.music.ui.screens.player
 
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -18,6 +18,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -37,67 +38,81 @@ fun MiniPlayer(
     viewModel: PlayerViewModel,
     onClick: () -> Unit,
 ) {
-    val currentSong by viewModel.currentSong.collectAsState()
-    val isPlaying by viewModel.isPlaying.collectAsState()
-    val currentPosition by viewModel.currentPosition.collectAsState()
-    val duration by viewModel.duration.collectAsState()
+    // Collecting the consolidated UI state
+    val uiState by viewModel.uiState.collectAsState()
+
+    // De-structure for easier access
+    val song = uiState.currentMediaItem ?: return
     val colors = colors
-    val animatedProgress by animateFloatAsState(targetValue = if (duration > 0) currentPosition.toFloat() / duration else 0f, label = "progress")
 
-    if (currentSong == null) return
+    val progress = if (uiState.duration > 0) {
+        uiState.currentPosition.toFloat() / uiState.duration
+    } else 0f
 
-    Column(
+    val animatedProgress by animateFloatAsState(
+        targetValue = progress,
+        label = "mini_player_progress"
+    )
+
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+            .clickable(onClick = onClick),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh
     ) {
-        LinearProgressIndicator(
-            progress = { animatedProgress },
-            modifier = Modifier.fillMaxWidth(),
-            color = colors.primary,
-            trackColor = colors.primary.copy(alpha = 0.1f),
-            strokeCap = StrokeCap.Round
-        )
-
-        Row(
-            modifier = Modifier
-                .padding(horizontal = 16.dp, vertical = 8.dp)
-                .fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            AsyncImage(
-                model = currentSong?.mediaMetadata?.artworkUri,
-                contentDescription = null,
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(RoundedCornerShape(4.dp)),
-                contentScale = ContentScale.Crop
+        Column {
+            // Smooth progress bar at the top
+            LinearProgressIndicator(
+                progress = { animatedProgress },
+                modifier = Modifier.fillMaxWidth().height(2.dp),
+                color = colors.primary,
+                trackColor = colors.primary.copy(alpha = 0.1f),
+                strokeCap = StrokeCap.Round
             )
 
-            Spacer(modifier = Modifier.width(12.dp))
+            Row(
+                modifier = Modifier
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                AsyncImage(
+                    model = song.mediaMetadata.artworkUri,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(48.dp) // Slightly larger for better touch target/visibility
+                        .clip(RoundedCornerShape(8.dp)),
+                    contentScale = ContentScale.Crop
+                )
 
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = currentSong?.mediaMetadata?.title.toString() ?: "",
-                    style = MaterialTheme.typography.bodyMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    text = currentSong?.mediaMetadata?.artist.toString() ?: "",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
+                Spacer(modifier = Modifier.width(12.dp))
 
-            IconButton(onClick = { viewModel.togglePlayPause() }) {
-                Icon(
-                    imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                    contentDescription = if (isPlaying) "Pause" else "Play"
-                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = song.mediaMetadata.title?.toString() ?: "Unknown Title",
+                        style = MaterialTheme.typography.bodyMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = song.mediaMetadata.artist?.toString() ?: "Unknown Artist",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                IconButton(
+                    onClick = { viewModel.togglePlayPause() },
+                    modifier = Modifier.size(48.dp)
+                ) {
+                    Icon(
+                        imageVector = if (uiState.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                        contentDescription = if (uiState.isPlaying) "Pause" else "Play",
+                        tint = colors.primary
+                    )
+                }
             }
         }
     }

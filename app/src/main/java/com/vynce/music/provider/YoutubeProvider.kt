@@ -2,6 +2,7 @@ package com.vynce.music.provider
 
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.vynce.vynceclient.Youtube
+import com.vynce.vynceclient.YtStream
 import com.vynce.vynceclient.pages.HomePage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -26,4 +27,8 @@ class YoutubeProvider @Inject constructor(){
             }
 
     }.flowOn(Dispatchers.IO)
+
+    suspend fun getStream(videoId: String): String? {
+        return YtStream.getVideoStream(videoId)
+    }
 }

@@ -55,7 +55,7 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.material3.adaptive.navigation.suite)
     implementation(libs.androidx.compose.material.icons.extended)
-
+    implementation(libs.ktor.serialization.kotlinx.json)
     implementation(libs.kotlinx.coroutines.guava)
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.media3.ui)
@@ -65,12 +65,15 @@ dependencies {
     implementation(libs.hilt.android)
     implementation(libs.hilt.lifecycle.viewmodel.compose)
     implementation(libs.firebase.crashlytics)
+    implementation(libs.firebase.analytics)
     implementation(libs.androidx.compose.runtime)
     implementation(libs.androidx.ui.tooling.preview)
+    implementation(libs.google.firebase.analytics)
     debugImplementation(libs.androidx.ui.tooling)
     ksp(libs.hilt.compiler)
     implementation(libs.hilt.lifecycle.viewmodel.compose)
 
+    implementation(libs.newpipe.extractor.kmp)
     implementation(libs.coil.compose)
 
     testImplementation(libs.junit)

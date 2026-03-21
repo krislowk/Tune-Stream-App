@@ -9,6 +9,8 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import com.google.common.util.concurrent.ListenableFuture
+import com.google.firebase.crashlytics.FirebaseCrashlytics
+import com.vynce.vynceclient.YtStream
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -34,18 +36,25 @@ class PlayerService : MediaSessionService() {
         ): ListenableFuture<MutableList<MediaItem>> {
 
             return serviceScope.future {
-                val resolvedItems = mutableListOf<MediaItem>()
-                for (item in mediaItems) {
-                    val videoId = item.mediaMetadata.extras?.getString("videoId")
-                    val currentUri = item.requestMetadata.mediaUri ?: item.localConfiguration?.uri
-
-                    resolvedItems.add(
-                        item.buildUpon()
-                            .setUri(currentUri)
-                            .build()
-                    )
+                val resultList = mediaItems.toMutableList()
+                if (resultList.isNotEmpty()) {
+                    val firstItem = resultList[0]
+                    if (firstItem.localConfiguration?.uri == null || firstItem.localConfiguration?.uri.toString().isEmpty()) {
+                        try {
+                            val streamUrl = YtStream.getVideoStream(firstItem.mediaId)
+                            if (streamUrl != null) {
+                                resultList[0] = firstItem.buildUpon()
+                                    .setUri(streamUrl)
+                                    .build()
+                            }
+                        } catch (e: Exception) {
+                            // If resolution fails, we keep the original item and let
+                            // the player's error handler deal with it lazily.
+                            FirebaseCrashlytics.getInstance().recordException(e)
+                        }
+                    }
                 }
-                resolvedItems
+                resultList
             }
         }
     }
