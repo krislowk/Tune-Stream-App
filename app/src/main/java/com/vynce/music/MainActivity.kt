@@ -48,6 +48,7 @@ import com.vynce.music.ui.screens.library.LibraryScreen
 import com.vynce.music.ui.screens.player.MiniPlayer
 import com.vynce.music.ui.screens.player.PlayerScreen
 import com.vynce.music.ui.screens.player.PlayerViewModel
+import com.vynce.music.ui.screens.settings.SettingsScreen
 import com.vynce.music.ui.theme.VynceTheme
 import com.yushosei.newpipe.extractor.NewPipe
 import com.yushosei.newpipe.util.DefaultDownloaderImpl
@@ -173,7 +174,7 @@ fun VynceApp(onShowPlayer: () -> Unit) {
                     )
                     AppDestinations.SEARCH -> Text("SEARCH Screen")
                     AppDestinations.LIBRARY -> LibraryScreen()
-                    AppDestinations.SETTINGS -> Text("SETTINGS Screen")
+                    AppDestinations.SETTINGS -> SettingsScreen()
                 }
             }
         }

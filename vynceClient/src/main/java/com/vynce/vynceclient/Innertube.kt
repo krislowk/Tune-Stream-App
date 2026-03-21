@@ -20,6 +20,7 @@ import com.vynce.vynceclient.models.response.NextResponse
 import com.vynce.vynceclient.models.response.PlayerResponse
 import com.vynce.vynceclient.models.response.SearchResponse
 import com.vynce.vynceclient.utils.parseCookieString
+import com.vynce.vynceclient.utils.sha1
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.okhttp.OkHttp
@@ -127,6 +128,17 @@ class Innertube() : ApiProvider {
             append("X-YouTube-Client-Version", client.clientVersion)
             append("X-Origin", YtClient.ORIGIN_YOUTUBE_MUSIC)
             append("Referer", YtClient.REFERER_YOUTUBE_MUSIC)
+
+            if (setLogin) {
+                cookie?.let { cookie ->
+                    append("cookie", cookie)
+                    if ("SAPISID" !in cookieMap) return@let
+                    val currentTime = System.currentTimeMillis() / 1000
+                    val sapisidHash =
+                        sha1("$currentTime ${cookieMap["SAPISID"]} https://music.youtube.com")
+                    append("Authorization", "SAPISIDHASH ${currentTime}_${sapisidHash}")
+                }
+            }
         }
         userAgent(client.userAgent)
         parameter("key", client.api_key)

@@ -73,6 +73,25 @@ fun LibraryScreen() {
                     )
                 }
 
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Text(
+                    text = "Login Debug Info",
+                    style = MaterialTheme.typography.titleLarge
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                val loginInfo by view.loginDebugInfo.collectAsState()
+
+                SelectionContainer {
+                    Text(
+                        text = loginInfo,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Row(
@@ -80,7 +99,10 @@ fun LibraryScreen() {
                 ) {
 
                     Button(
-                        onClick = { view.fetchStream("l3XDIjQjkzk") }
+                        onClick = { 
+                            view.fetchStream("l3XDIjQjkzk")
+                            view.updateLoginDebugInfo()
+                        }
                     ) {
                         Text("Refresh")
                     }

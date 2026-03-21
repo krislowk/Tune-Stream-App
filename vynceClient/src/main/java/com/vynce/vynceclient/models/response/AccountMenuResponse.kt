@@ -36,9 +36,9 @@ data class AccountMenuResponse(
                             val accountPhoto: com.vynce.vynceclient.models.ThumbnailRenderer? = null,
                         ) {
                             fun toAccountInfo() = AccountInfo(
-                                name = accountName.runs!!.first().text,
-                                email = email?.runs?.first()?.text,
-                                channelHandle = channelHandle?.runs?.first()?.text,
+                                name = accountName.runs?.firstOrNull()?.text ?: "Unknown User",
+                                email = email?.runs?.firstOrNull()?.text,
+                                channelHandle = channelHandle?.runs?.firstOrNull()?.text,
                                 thumbnail = accountPhoto?.musicThumbnailRenderer?.getThumbnailUrl()
                                     ?: accountPhoto?.croppedSquareThumbnailRenderer?.getThumbnailUrl()
                             )

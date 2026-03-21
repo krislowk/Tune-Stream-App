@@ -652,10 +652,11 @@ object Youtube {
     }
 
     suspend fun accountInfo(): Result<AccountInfo> = runCatching {
-        innerTube.accountMenu(WEB_REMIX)
-            .actions[0].openPopupAction.popup.multiPageMenuRenderer
-            .header?.activeAccountHeaderRenderer
-            ?.toAccountInfo()!!
+        val response = innerTube.accountMenu(WEB_REMIX)
+        val action = response.actions.firstOrNull() ?: throw Exception("Could not find account info in response")
+        val header = action.openPopupAction.popup.multiPageMenuRenderer.header ?: throw Exception("Not logged in")
+
+        header.activeAccountHeaderRenderer.toAccountInfo()
     }
 
     @JvmInline

@@ -1,5 +1,6 @@
 package com.vynce.server
 
+import com.vynce.vynceclient.Youtube
 import com.yushosei.newpipe.extractor.NewPipe
 import com.yushosei.newpipe.util.DefaultDownloaderImpl
 import com.yushosei.newpipe.util.ExtractorHelper
@@ -16,8 +17,12 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
+import io.ktor.serialization.kotlinx.json.json
+import io.ktor.server.application.install
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
+import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.server.response.respond
 import io.ktor.server.response.respondBytesWriter
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
@@ -28,6 +33,9 @@ import io.ktor.utils.io.copyTo
 fun main() {
 
     val client = HttpClient(OkHttp) {
+        install(io.ktor.client.plugins.contentnegotiation.ContentNegotiation) {
+            json()
+        }
         install(ContentEncoding) {
 
             customEncoder(ZstdEncoder())
@@ -43,6 +51,10 @@ fun main() {
         port = 8080,
         watchPaths = listOf("classes")
     ) {
+        install(ContentNegotiation) {
+            json()
+        }
+
         routing {
             get("/") {
                 call.respondText("Hot reload test")
@@ -94,6 +106,29 @@ fun main() {
                     }
                 } catch (e: Exception) {
                     call.respondText("Failed to extract stream: ${e.message}", status = HttpStatusCode.InternalServerError)
+                }
+            }
+        }
+
+        routing {
+            get("/login") {
+                val cookie = call.request.queryParameters["cookie"]
+                if (cookie != null) {
+                    Youtube.cookie = cookie
+                    call.respondText("Logged in successfully (Cookie updated)")
+                } else {
+                    call.respondText(
+                        "Error: 'cookie' query parameter is required",
+                        status = HttpStatusCode.BadRequest
+                    )
+                }
+            }
+
+            get("/account") {
+                Youtube.accountInfo().onSuccess { info ->
+                    call.respond(info)
+                }.onFailure {
+                    call.respondText("Error fetching account info: ${it.message}", status = HttpStatusCode.InternalServerError)
                 }
             }
         }
