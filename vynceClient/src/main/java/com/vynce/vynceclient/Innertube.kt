@@ -60,7 +60,7 @@ class Innertube() : ApiProvider {
 
     override var proxy: Proxy? = null
 
-    override var useLoginForBrowse: Boolean = false
+    override var useLoginForBrowse: Boolean = true
 
     override var visitorData: String = "CgtsZG1ySnZiQWtSbyiMjuGSBg%3D%3D"
 
@@ -190,7 +190,7 @@ class Innertube() : ApiProvider {
         browseId: String?,
         params: String?,
         continuation: String?,
-        setLogin: Boolean,
+        setLogin: Boolean
     ): BrowseResponse = sharedClient.post("browse") {
         ytClient(client, setLogin = setLogin || useLoginForBrowse)
         setBody(
@@ -270,7 +270,7 @@ class Innertube() : ApiProvider {
         setBody(
             GetTranscriptBody(
                 context = client.toContext(locale, null),
-                params = Base64.Default.encode("\n${11.toChar()}$videoId".toByteArray())
+                params = Base64.encode("\n${11.toChar()}$videoId".toByteArray())
             )
         )
     }.body()

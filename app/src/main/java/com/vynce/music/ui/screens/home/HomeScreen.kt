@@ -16,8 +16,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -44,48 +46,101 @@ fun HomeScreen(
     viewModel: HomeViewModel
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val refreshing = viewModel.refreshing
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        when (val state = uiState) {
-            is HomeUiState.Loading -> {
-                HomeSkeleton()
+
+    PullToRefreshBox(
+        refreshing,
+        onRefresh = { viewModel.refresh() },
+        indicator = { if (refreshing) {
+            Box(contentAlignment = Alignment.TopCenter) {
+                CircularProgressIndicator()
             }
-            is HomeUiState.Error -> {
-                Text(
-                    text = state.message,
-                    modifier = Modifier.align(Alignment.Center),
-                    color = MaterialTheme.colorScheme.error
-                )
-            }
-            is HomeUiState.Success -> {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = 80.dp)
-                ) {
-                    item {
-                        HomeHeader()
-                    }
+        }
+        }
+    ) {
 
-                    val quickPicksSection = state.data.sections.find { it.title.contains("Quick", ignoreCase = true) }
-                    val otherSections = state.data.sections.filter { it != quickPicksSection }
 
-                    if (quickPicksSection != null) {
+
+        Box(modifier = Modifier.fillMaxSize()) {
+            when (val state = uiState) {
+
+                is HomeUiState.Loading -> {
+                    HomeSkeleton()
+                }
+
+                is HomeUiState.Error -> {
+                    Text(
+                        text = state.message,
+                        modifier = Modifier.align(Alignment.Center),
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+
+                is HomeUiState.Success -> {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(bottom = 80.dp)
+                    ) {
                         item {
-                            QuickPicksCarousel(
-                                title = quickPicksSection.title,
-                                items = quickPicksSection.items,
+                            HomeHeader()
+                        }
+
+                        val quickPicksSection = state.data.sections.find {
+                            it.title.contains(
+                                "Quick",
+                                ignoreCase = true
+                            )
+                        }
+                        val otherSections = state.data.sections.filter { it != quickPicksSection }
+
+                        if (quickPicksSection != null) {
+                            item {
+                                QuickPicksCarousel(
+                                    title = quickPicksSection.title,
+                                    items = quickPicksSection.items,
+                                    onItemClick = { item ->
+                                        when (item) {
+                                            is SongItem -> {
+                                                playerViewModel.play(item.toMediaItem())
+                                            }
+
+                                            is AlbumItem -> onItemClick("album", item.browseId)
+                                            is PlaylistItem -> onItemClick("playlist", item.id)
+                                            is ArtistItem -> onItemClick("artist", item.id)
+                                        }
+                                    },
+                                    onPlayAllClick = {
+                                        val songs =
+                                            quickPicksSection.items.filterIsInstance<SongItem>()
+                                        if (songs.isNotEmpty()) {
+                                            playerViewModel.play(songs.first().toMediaItem())
+                                            songs.drop(1).forEach { song ->
+                                                playerViewModel.addToQueue(song.toMediaItem())
+                                            }
+                                        }
+                                    }
+                                )
+                            }
+                        }
+
+                        items(otherSections) { section ->
+                            CarouselList(
+                                title = section.title,
+                                items = section.items,
                                 onItemClick = { item ->
                                     when (item) {
                                         is SongItem -> {
                                             playerViewModel.play(item.toMediaItem())
                                         }
+
                                         is AlbumItem -> onItemClick("album", item.browseId)
                                         is PlaylistItem -> onItemClick("playlist", item.id)
                                         is ArtistItem -> onItemClick("artist", item.id)
                                     }
                                 },
                                 onPlayAllClick = {
-                                    val songs = quickPicksSection.items.filterIsInstance<SongItem>()
+                                    val songs = section.items.filterIsInstance<SongItem>()
                                     if (songs.isNotEmpty()) {
                                         playerViewModel.play(songs.first().toMediaItem())
                                         songs.drop(1).forEach { song ->
@@ -95,32 +150,6 @@ fun HomeScreen(
                                 }
                             )
                         }
-                    }
-
-                    items(otherSections) { section ->
-                        CarouselList(
-                            title = section.title,
-                            items = section.items,
-                            onItemClick = { item ->
-                                when (item) {
-                                    is SongItem -> {
-                                        playerViewModel.play(item.toMediaItem())
-                                    }
-                                    is AlbumItem -> onItemClick("album", item.browseId)
-                                    is PlaylistItem -> onItemClick("playlist", item.id)
-                                    is ArtistItem -> onItemClick("artist", item.id)
-                                }
-                            },
-                            onPlayAllClick = {
-                                val songs = section.items.filterIsInstance<SongItem>()
-                                if (songs.isNotEmpty()) {
-                                    playerViewModel.play(songs.first().toMediaItem())
-                                    songs.drop(1).forEach { song ->
-                                        playerViewModel.addToQueue(song.toMediaItem())
-                                    }
-                                }
-                            }
-                        )
                     }
                 }
             }

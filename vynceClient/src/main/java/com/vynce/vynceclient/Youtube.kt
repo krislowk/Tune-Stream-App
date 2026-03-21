@@ -335,8 +335,8 @@ object Youtube {
         )
     }
 
-    suspend fun home(browseId: String = "FEmusic_home", params: String? = null, setLogin: Boolean = false): Result<HomePage> = runCatching {
-        var response = innerTube.browse(WEB_REMIX, browseId = browseId, params = params, setLogin = setLogin)
+    suspend fun home(browseId: String = "FEmusic_home", params: String? = null): Result<HomePage> = runCatching {
+        var response = innerTube.browse(WEB_REMIX, browseId = browseId, params = params, setLogin = useLoginForBrowse)
         val sectionListRenderer = response.contents?.singleColumnBrowseResultsRenderer?.tabs?.firstOrNull()
             ?.tabRenderer?.content?.sectionListRenderer
 
@@ -359,7 +359,7 @@ object Youtube {
             }.toMutableList()
 
         while (continuation != null) {
-            response = innerTube.browse(WEB_REMIX, continuation = continuation, setLogin = setLogin)
+            response = innerTube.browse(WEB_REMIX, continuation = continuation, setLogin = useLoginForBrowse)
             continuation = response.continuationContents?.sectionListContinuation?.continuations?.getContinuation()
             sections += response.continuationContents?.sectionListContinuation?.contents
                 ?.mapNotNull { it.musicCarouselShelfRenderer }

@@ -16,10 +16,9 @@ class YoutubeProvider @Inject constructor(){
     fun getHome(
         browseId: String = "FEmusic_home",
         params: String? = null,
-        setLogin: Boolean = false
     ): Flow<HomePage> = flow {
 
-        Youtube.home(browseId, params, setLogin)
+        Youtube.home(browseId, params)
             .onSuccess { emit(it) }
             .onFailure {
                 FirebaseCrashlytics.getInstance().recordException(it)
