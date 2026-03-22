@@ -1,6 +1,5 @@
 package com.vynce.music.provider
 
-import android.content.ContentUris
 import android.content.Context
 import android.provider.MediaStore
 import com.vynce.music.data.model.Song
@@ -43,11 +42,7 @@ class LocalProvider @Inject constructor(@ApplicationContext private val context:
                         it.getString(titleCol),
                         it.getString(artistCol),
                         null,
-                        it.getLong(durationCol),
-                        contentUri = ContentUris.withAppendedId(
-                            MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
-                            it.getLong(idCol)
-                        )
+                        it.getLong(durationCol)
                     )
                 )
             }

@@ -352,11 +352,11 @@ object Youtube {
             }
         }.orEmpty()
 
-        val sections = sectionListRenderer?.contents!!
-            .mapNotNull { it.musicCarouselShelfRenderer }
-            .mapNotNull {
+        val sections = sectionListRenderer?.contents
+            ?.mapNotNull { it.musicCarouselShelfRenderer }
+            ?.mapNotNull {
                 HomePage.Section.fromMusicCarouselShelfRenderer(it)
-            }.toMutableList()
+            }?.toMutableList() ?: mutableListOf()
 
         while (continuation != null) {
             response = innerTube.browse(WEB_REMIX, continuation = continuation, setLogin = useLoginForBrowse)

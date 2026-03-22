@@ -1,10 +1,12 @@
 package com.vynce.music.ui.screens.home
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -15,8 +17,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -29,6 +33,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import coil.compose.AsyncImage
+import com.vynce.music.data.model.User
 import com.vynce.music.ui.commponents.CarouselList
 import com.vynce.music.ui.commponents.QuickPicksCarousel
 import com.vynce.music.ui.screens.player.PlayerViewModel
@@ -43,25 +50,17 @@ import com.vynce.vynceclient.models.SongItem
 fun HomeScreen(
     playerViewModel: PlayerViewModel,
     onItemClick: (String, String?) -> Unit,
-    viewModel: HomeViewModel
+    viewModel: HomeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val refreshing = viewModel.refreshing
 
 
     PullToRefreshBox(
-        refreshing,
+        isRefreshing = refreshing,
         onRefresh = { viewModel.refresh() },
-        indicator = { if (refreshing) {
-            Box(contentAlignment = Alignment.TopCenter) {
-                CircularProgressIndicator()
-            }
-        }
-        }
+        modifier = Modifier.fillMaxSize()
     ) {
-
-
-
         Box(modifier = Modifier.fillMaxSize()) {
             when (val state = uiState) {
 
@@ -83,7 +82,30 @@ fun HomeScreen(
                         contentPadding = PaddingValues(bottom = 80.dp)
                     ) {
                         item {
-                            HomeHeader()
+                            val user by viewModel.currentUser.collectAsState()
+                            HomeHeader(user = user)
+                        }
+
+                        if (state.data.filters.isNotEmpty()) {
+                            item {
+                                LazyRow(
+                                    contentPadding = PaddingValues(horizontal = 16.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    modifier = Modifier.padding(bottom = 16.dp)
+                                ) {
+                                    items(state.data.filters) { filter ->
+                                        FilterChip(
+                                            selected = filter.isSelected,
+                                            onClick = { viewModel.onFilterSelected(filter) },
+                                            label = { Text(filter.title) },
+                                            colors = FilterChipDefaults.filterChipColors(
+                                                selectedContainerColor = VynceTheme.colors.primary,
+                                                selectedLabelColor = VynceTheme.colors.onPrimary
+                                            )
+                                        )
+                                    }
+                                }
+                            }
                         }
 
                         val quickPicksSection = state.data.sections.find {
@@ -219,7 +241,7 @@ fun HomeSkeleton() {
 }
 
 @Composable
-fun HomeHeader() {
+fun HomeHeader(user: User?) {
     val calendar = java.util.Calendar.getInstance()
     val hour = calendar.get(java.util.Calendar.HOUR_OF_DAY)
     val greeting = when (hour) {
@@ -230,7 +252,7 @@ fun HomeHeader() {
         else -> "Night Owl? 🦉"
     }
 
-    val subtitle = when (hour) {
+    val subtitle = user?.name?.let { "Ready for some music, $it?" } ?: when (hour) {
         in 5..11 -> "Start your day with some energy!"
         in 12..16 -> "Need a midday break?"
         in 17..20 -> "Wind down with your favorites."
@@ -238,25 +260,39 @@ fun HomeHeader() {
         else -> "Keep the vibe going."
     }
 
-    Column(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 24.dp)
+            .padding(horizontal = 16.dp, vertical = 24.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = greeting,
-            style = VynceTheme.typography.title.copy(
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Black
-            ),
-            color = VynceTheme.colors.textPrimary
-        )
-        Text(
-            text = subtitle,
-            style = VynceTheme.typography.body.copy(
-                fontSize = 16.sp,
-                color = VynceTheme.colors.textSecondary
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = greeting,
+                style = VynceTheme.typography.title.copy(
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.Black
+                ),
+                color = VynceTheme.colors.textPrimary
             )
+            Text(
+                text = subtitle,
+                style = VynceTheme.typography.body.copy(
+                    fontSize = 16.sp,
+                    color = VynceTheme.colors.textSecondary
+                )
+            )
+        }
+
+        AsyncImage(
+            model = user?.avatarUrl ?: "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&s=200",
+            contentDescription = "Profile",
+            modifier = Modifier
+                .size(48.dp)
+                .clip(CircleShape)
+                .background(VynceTheme.colors.surface)
+                .clickable { /* Navigate to profile settings */ }
         )
     }
 }

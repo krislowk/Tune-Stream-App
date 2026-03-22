@@ -42,7 +42,7 @@ fun MiniPlayer(
     val uiState by viewModel.uiState.collectAsState()
 
     // De-structure for easier access
-    val song = uiState.currentMediaItem ?: return
+    val song = uiState.currentTrack ?: return
     val colors = colors
 
     val progress = if (uiState.duration > 0) {

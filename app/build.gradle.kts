@@ -1,3 +1,6 @@
+import java.io.FileInputStream
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -5,6 +8,12 @@ plugins {
     alias(libs.plugins.ksp)
     alias(libs.plugins.google.gms.google.services)
     alias(libs.plugins.google.firebase.crashlytics)
+    alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.androidx.room)
+}
+
+room {
+    schemaDirectory("$projectDir/schemas")
 }
 
 android {
@@ -23,6 +32,10 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        val properties = Properties()
+        properties.load(FileInputStream(project.rootProject.file("local.properties")))
+        val gravatarKey = properties["gravatar.api.key"]?.toString()?.replace("\"", "") ?: ""
+        buildConfigField("String", "GRAVATAR_API_KEY", "\"$gravatarKey\"")
     }
 
     buildTypes {
@@ -31,18 +44,22 @@ android {
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
+
+
             )
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
-}
 
+
+}
 dependencies {
     implementation(project(":vynceClient"))
     implementation(libs.androidx.core.ktx)
@@ -75,6 +92,13 @@ dependencies {
 
     implementation(libs.newpipe.extractor.kmp)
     implementation(libs.coil.compose)
+
+    implementation(libs.androidx.navigation.compose)
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.room.ktx)
+    ksp(libs.androidx.room.compiler)
+    implementation(libs.gravatar)
+    implementation(libs.gravatar.ui)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

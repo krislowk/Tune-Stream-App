@@ -12,6 +12,8 @@ import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.MoreExecutors
 import com.google.firebase.crashlytics.FirebaseCrashlytics
+import com.vynce.music.data.model.Song
+import com.vynce.music.data.repository.SongRepository
 import com.vynce.music.service.PlayerService
 import com.vynce.music.utils.toMediaItem
 import com.vynce.vynceclient.Youtube
@@ -30,7 +32,7 @@ import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 data class PlayerUiState(
-    val currentMediaItem: MediaItem? = null,
+    val currentTrack: MediaItem? = null,
     val isPlaying: Boolean = false,
     val currentPosition: Long = 0L,
     val duration: Long = 0L,
@@ -40,12 +42,15 @@ data class PlayerUiState(
     val queue: List<MediaItem> = emptyList(),
     val upNext: List<MediaItem> = emptyList(),
     val relatedSongs: List<MediaItem> = emptyList(),
-    val isFetchingMetadata: Boolean = false
+    val isFetchingMetadata: Boolean = false,
+    val isLiked: Boolean = false,
+    val isAutoplayEnabled: Boolean = true
 )
 
 @HiltViewModel
 class PlayerViewModel @Inject constructor(
-    private val application: Application
+    private val application: Application,
+    private val songRepository: SongRepository
 ) : ViewModel() {
 
     private var controller: MediaController? = null
@@ -86,16 +91,56 @@ class PlayerViewModel @Inject constructor(
             }
 
             if (events.contains(Player.EVENT_MEDIA_ITEM_TRANSITION)) {
-                player.currentMediaItem?.mediaId?.let { fetchMetadata(it) }
+                player.currentMediaItem?.let { item ->
+                    fetchMetadata(item.mediaId)
+                    saveToHistory(item)
+                    updateLikedState(item.mediaId)
+                }
             }
         }
     }
 
+    private fun updateLikedState(videoId: String) = viewModelScope.launch {
+        _uiState.update { it.copy(isLiked = songRepository.isLiked(videoId)) }
+    }
+
+    fun toggleLike() = viewModelScope.launch {
+        val currentTrack = _uiState.value.currentTrack ?: return@launch
+        val song = Song(
+            title = currentTrack.mediaMetadata.title?.toString() ?: "Unknown",
+            artist = currentTrack.mediaMetadata.artist?.toString() ?: "Unknown",
+            album = currentTrack.mediaMetadata.albumTitle?.toString(),
+            duration = 0,
+            contentUri = currentTrack.mediaId,
+            thumbnail = currentTrack.mediaMetadata.artworkUri?.toString() ?: "",
+            isYoutube = true
+        )
+        songRepository.toggleLike(song)
+        _uiState.update { it.copy(isLiked = !it.isLiked) }
+    }
+
+    fun toggleAutoplay() {
+        _uiState.update { it.copy(isAutoplayEnabled = !it.isAutoplayEnabled) }
+    }
+
+    private fun saveToHistory(mediaItem: MediaItem) = viewModelScope.launch {
+        val song = Song(
+            title = mediaItem.mediaMetadata.title?.toString() ?: "Unknown",
+            artist = mediaItem.mediaMetadata.artist?.toString() ?: "Unknown",
+            album = mediaItem.mediaMetadata.albumTitle?.toString(),
+            duration = 0, // Should get from player if possible
+            contentUri = mediaItem.mediaId,
+            thumbnail = mediaItem.mediaMetadata.artworkUri?.toString() ?: ""
+        )
+        songRepository.markAsPlayed(song)
+    }
+
     private fun syncState() {
         controller?.let { p ->
+            val currentItem = p.currentMediaItem
             _uiState.update { state ->
                 state.copy(
-                    currentMediaItem = p.currentMediaItem,
+                    currentTrack = currentItem,
                     isPlaying = p.isPlaying,
                     duration = if (p.duration != C.TIME_UNSET) p.duration else 0L,
                     isBuffering = p.playbackState == Player.STATE_BUFFERING,
@@ -103,6 +148,9 @@ class PlayerViewModel @Inject constructor(
                     shuffleEnabled = p.shuffleModeEnabled,
                     queue = List(p.mediaItemCount) { p.getMediaItemAt(it) }
                 )
+            }
+            if (currentItem != null) {
+                updateLikedState(currentItem.mediaId)
             }
         }
     }
@@ -128,7 +176,7 @@ class PlayerViewModel @Inject constructor(
             val upNextSongs = result.items.map { it.toMediaItem() }
             _uiState.update { it.copy(upNext = upNextSongs, isFetchingMetadata = false) }
 
-            if (controller?.mediaItemCount ?: 0 <= 1) {
+            if (_uiState.value.isAutoplayEnabled && (controller?.mediaItemCount ?: 0) <= 1) {
                 controller?.addMediaItems(upNextSongs)
             }
 
