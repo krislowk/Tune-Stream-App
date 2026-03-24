@@ -34,26 +34,7 @@ interface ApiProvider {
         browseId: String? = null,
         params: String? = null,
         continuation: String? = null,
-        setLogin: Boolean = false
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        ,
+        setLogin: Boolean = false,
     ): BrowseResponse
 
     suspend fun player(

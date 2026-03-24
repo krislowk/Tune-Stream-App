@@ -11,10 +11,12 @@ data class Context(
     data class Client(
         val clientName: String,
         val clientVersion: String,
-        val osVersion: String?,
+        val osVersion: String? = null,
         val gl: String,
         val hl: String,
-        val visitorData: String?,
+        val visitorData: String? = null,
+        val androidSdkVersion: Int? = null,
+        val platform: String? = null,
     )
 
     @Serializable

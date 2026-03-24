@@ -26,14 +26,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Paint
-import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -133,16 +129,9 @@ fun MediaItemCard(
         Column {
             Box(
                 modifier = Modifier
-                    .size(136.dp)
+                    .fillMaxSize()
                     .clip(VynceTheme.shapes.medium)
-                    .background(
-                        Brush.linearGradient(
-                            colors = listOf(
-                                VynceTheme.colors.textPrimary.copy(alpha = 0.1f),
-                                VynceTheme.colors.textPrimary.copy(alpha = 0.02f)
-                            )
-                        )
-                    ),
+                    .background(Color.Black),
                 contentAlignment = Alignment.Center
             ) {
                 if (imageUrl != null) {
@@ -194,41 +183,6 @@ fun Card(
 ) {
     Box(
         modifier = modifier
-            .drawBehind {
-                val shadowColor = Color.Black.copy(alpha = 0.5f).toArgb()
-                val highlightColor = Color.White.copy(alpha = 0.05f).toArgb()
-
-                drawIntoCanvas { canvas ->
-                    val paint = Paint()
-                    val frameworkPaint = paint.asFrameworkPaint()
-
-                    // Shadow
-                    frameworkPaint.color = shadowColor
-                    frameworkPaint.setShadowLayer(
-                        elevation.toPx(),
-                        elevation.toPx(),
-                        elevation.toPx(),
-                        shadowColor
-                    )
-                    canvas.drawRoundRect(
-                        0f, 0f, size.width, size.height,
-                        cornerRadius.toPx(), cornerRadius.toPx(), paint
-                    )
-
-                    // Highlight
-                    frameworkPaint.color = highlightColor
-                    frameworkPaint.setShadowLayer(
-                        elevation.toPx(),
-                        -elevation.toPx() / 2,
-                        -elevation.toPx() / 2,
-                        highlightColor
-                    )
-                    canvas.drawRoundRect(
-                        0f, 0f, size.width, size.height,
-                        cornerRadius.toPx(), cornerRadius.toPx(), paint
-                    )
-                }
-            }
             .background(backgroundColor, RoundedCornerShape(cornerRadius))
             .padding(elevation)
     ) {
@@ -271,4 +225,10 @@ fun MediaItem(
             )
         }
     }
+}
+
+@Preview(showBackground = true, backgroundColor = 0)
+@Composable
+private fun CardPreview() {
+
 }

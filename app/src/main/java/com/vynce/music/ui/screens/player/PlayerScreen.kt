@@ -36,20 +36,18 @@ import androidx.compose.material.icons.filled.RepeatOne
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
-import androidx.compose.material3.BottomSheetScaffold
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.SecondaryTabRow
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.TabRowDefaults
-import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberBottomSheetScaffoldState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -76,6 +74,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import coil.compose.AsyncImage
+import com.vynce.music.ui.commponents.BottomModal
 import com.vynce.music.ui.commponents.MoreOptionsSheet
 import com.vynce.music.ui.theme.VynceTheme
 import com.vynce.music.utils.formatTime
@@ -84,20 +83,26 @@ import com.vynce.music.utils.formatTime
 @Composable
 fun PlayerScreen(
     viewModel: PlayerViewModel = hiltViewModel(),
-    onNavigateToAlbum: (String) -> Unit = {},
     onNavigateToArtist: (String) -> Unit = {},
+    onNavigateToAlbum: (String) -> Unit = {},
     expansionProgress: () -> Float = { 1f },
     onClose: () -> Unit,
-    onExpand: () -> Unit = {},
-    bottomPadding: androidx.compose.ui.unit.Dp = 0.dp
+    onExpand: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val lyrics by viewModel.lyrics.collectAsState()
 
     var showMoreOptions by remember { mutableStateOf(false) }
+    var isQueueExpanded by remember { mutableStateOf(false) }
 
-    val scaffoldState = rememberBottomSheetScaffoldState()
     val colors = VynceTheme.colors
+    val progress = expansionProgress()
+
+    // Smooth transition between Mini and Full UI
+    val miniPlayerAlpha = (1f - (progress * 5f)).coerceIn(0f, 1f)
+    val fullPlayerAlpha = ((progress - 0.2f) * 1.25f).coerceIn(0f, 1f)
+    val artworkScale = (0.7f + (progress * 0.3f)).coerceIn(0.7f, 1f)
+    val artworkCornerRadius = 8.dp + (16.dp * progress)
 
     var sliderPosition by remember { mutableFloatStateOf(0f) }
     var isSeeking by remember { mutableStateOf(false) }
@@ -110,8 +115,11 @@ fun PlayerScreen(
         label = "slider"
     )
 
-    BottomSheetScaffold(
-        scaffoldState = scaffoldState,
+    BottomModal(
+        isExpanded = isQueueExpanded,
+        onExpandChange = { isQueueExpanded = it },
+        peekHeight = 80.dp,
+        showSheet = progress > 0.5f,
         sheetContent = {
             TabbedQueueContent(
                 uiState = uiState,
@@ -121,256 +129,269 @@ fun PlayerScreen(
                 onMoveItem = { from, to -> viewModel.moveQueueItem(from, to) },
                 onToggleAutoplay = { viewModel.toggleAutoplay() }
             )
-        },
-        sheetPeekHeight = 64.dp,
-        sheetDragHandle = {
+        }
+    ) { padding ->
+        Box(modifier = Modifier.fillMaxSize()) {
+            // Full Player UI Background & Content
             Box(
                 modifier = Modifier
-                    .padding(vertical = 12.dp)
-                    .width(40.dp)
-                    .height(4.dp)
-                    .clip(CircleShape)
-                    .background(colors.textSecondary.copy(alpha = 0.3f))
-            )
-        },
-        sheetShape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-        sheetContainerColor = colors.surface,
-        containerColor = colors.background
-    ) { padding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .background(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(
-                            colors.primary.copy(alpha = 0.2f),
-                            colors.background
-                        )
-                    )
-                )
-        ) {
-            // Full Player UI
-            Column(
-                modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 24.dp)
-                    .graphicsLayer {
-                        alpha = expansionProgress()
-                    },
-                horizontalAlignment = Alignment.CenterHorizontally
+                    .graphicsLayer { alpha = fullPlayerAlpha }
+                    .background(
+                        brush = Brush.verticalGradient(
+                            colors = listOf(
+                                colors.primary.copy(alpha = 0.2f),
+                                colors.background
+                            )
+                        )
+                    )
+                    .padding(padding)
             ) {
-                // Header
-                Row(
+                Column(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                        .fillMaxSize()
+                        .padding(horizontal = 24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    IconButton(onClick = onClose) {
-                        Icon(
-                            imageVector = Icons.Default.KeyboardArrowDown,
-                            contentDescription = "Close",
-                            tint = colors.textPrimary,
-                            modifier = Modifier.size(32.dp)
-                        )
-                    }
-                    Text(
-                        text = "NOW PLAYING",
-                        style = VynceTheme.typography.label.copy(
-                            letterSpacing = 2.sp,
-                            fontWeight = FontWeight.Bold
-                        ),
-                        color = colors.textSecondary
-                    )
-                    IconButton(onClick = { showMoreOptions = true }) {
-                        Icon(
-                            imageVector = Icons.Default.MoreHoriz,
-                            contentDescription = "More",
-                            tint = colors.textPrimary,
-                            modifier = Modifier.size(32.dp)
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.weight(0.5f))
-
-                // Artwork
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(1f)
-                        .shadow(
-                            elevation = 20.dp,
-                            shape = RoundedCornerShape(24.dp),
-                            clip = false
-                        )
-                        .clip(RoundedCornerShape(24.dp))
-                ) {
-                    AsyncImage(
-                        model = uiState.currentTrack?.mediaMetadata?.artworkUri,
-                        contentDescription = null,
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
-                }
-
-                Spacer(modifier = Modifier.weight(0.5f))
-
-                // Info
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = uiState.currentTrack?.mediaMetadata?.title?.toString() ?: "Unknown",
-                            style = VynceTheme.typography.title.copy(fontSize = 24.sp, fontWeight = FontWeight.Bold),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            color = colors.textPrimary
-                        )
-                        Text(
-                            text = uiState.currentTrack?.mediaMetadata?.artist?.toString() ?: "Unknown",
-                            style = VynceTheme.typography.body.copy(fontSize = 18.sp),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            color = colors.textSecondary,
-                            modifier = Modifier.clickable {
-                                uiState.currentTrack?.mediaMetadata?.extras?.getString("artist_id")?.let { onNavigateToArtist(it) }
-                            }
-                        )
-                    }
-
-                    IconButton(onClick = { viewModel.toggleLike() }) {
-                        Icon(
-                            imageVector = if (uiState.isLiked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                            contentDescription = "Like",
-                            tint = if (uiState.isLiked) colors.primary else colors.textSecondary,
-                            modifier = Modifier.size(28.dp)
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // Progress
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    Slider(
-                        value = animatedSliderPosition,
-                        onValueChange = {
-                            sliderPosition = it
-                            isSeeking = true
-                        },
-                        onValueChangeFinished = {
-                            viewModel.seekTo((sliderPosition * uiState.duration).toLong())
-                            isSeeking = false
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                    // Header
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = formatTime(uiState.currentPosition),
-                            style = VynceTheme.typography.label,
-                            color = colors.textSecondary
-                        )
-                        Text(
-                            text = formatTime(uiState.duration),
-                            style = VynceTheme.typography.label,
-                            color = colors.textSecondary
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Controls
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(onClick = { viewModel.toggleShuffle() }) {
-                        Icon(
-                            imageVector = Icons.Default.Shuffle,
-                            contentDescription = "Shuffle",
-                            tint = if (uiState.shuffleEnabled) colors.primary else colors.textSecondary,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(24.dp)
-                    ) {
-                        IconButton(onClick = { viewModel.skipPrevious() }) {
+                        IconButton(onClick = onClose) {
                             Icon(
-                                imageVector = Icons.Default.SkipPrevious,
-                                contentDescription = "Previous",
-                                modifier = Modifier.size(36.dp),
-                                tint = colors.textPrimary
+                                imageVector = Icons.Default.KeyboardArrowDown,
+                                contentDescription = "Close",
+                                tint = colors.textPrimary,
+                                modifier = Modifier.size(32.dp)
+                            )
+                        }
+                        Text(
+                            text = "NOW PLAYING",
+                            style = VynceTheme.typography.label.copy(
+                                letterSpacing = 2.sp,
+                                fontWeight = FontWeight.Bold
+                            ),
+                            color = colors.textSecondary
+                        )
+                        IconButton(onClick = { showMoreOptions = true }) {
+                            Icon(
+                                imageVector = Icons.Default.MoreHoriz,
+                                contentDescription = "More",
+                                tint = colors.textPrimary,
+                                modifier = Modifier.size(32.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.weight(0.5f))
+
+                    // Artwork (Scaled and Morphing)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .aspectRatio(1f)
+                            .graphicsLayer {
+                                scaleX = artworkScale
+                                scaleY = artworkScale
+                            }
+                            .shadow(
+                                elevation = (20.dp * progress),
+                                shape = RoundedCornerShape(artworkCornerRadius),
+                                clip = false
+                            )
+                            .clip(RoundedCornerShape(artworkCornerRadius)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        AsyncImage(
+                            model = uiState.currentTrack?.mediaMetadata?.artworkUri,
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                        if (uiState.isBuffering || uiState.isFetchingMetadata) {
+                            CircularProgressIndicator(
+                                color = colors.primary,
+                                modifier = Modifier.size(48.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.weight(0.5f))
+
+                    // Info (Slide up and fade in)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .graphicsLayer { 
+                                translationY = (40f * (1f - progress))
+                                alpha = fullPlayerAlpha
+                            },
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = uiState.currentTrack?.mediaMetadata?.title?.toString() ?: "Unknown",
+                                style = VynceTheme.typography.title.copy(fontSize = 24.sp, fontWeight = FontWeight.Bold),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                color = colors.textPrimary
+                            )
+                            Text(
+                                text = uiState.currentTrack?.mediaMetadata?.artist?.toString() ?: "Unknown",
+                                style = VynceTheme.typography.body.copy(fontSize = 18.sp),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                color = colors.textSecondary,
+                                modifier = Modifier.clickable {
+                                    uiState.currentTrack?.mediaMetadata?.extras?.getString("artist_id")?.let { onNavigateToArtist(it) }
+                                }
                             )
                         }
 
-                        Surface(
-                            modifier = Modifier
-                                .size(72.dp)
-                                .shadow(8.dp, CircleShape)
-                                .clickable { viewModel.togglePlayPause() },
-                            shape = CircleShape,
-                            color = colors.primary
+                        IconButton(onClick = { viewModel.toggleLike() }) {
+                            Icon(
+                                imageVector = if (uiState.isLiked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                contentDescription = "Like",
+                                tint = if (uiState.isLiked) colors.primary else colors.textSecondary,
+                                modifier = Modifier.size(28.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    // Progress & Controls (Fade in)
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .graphicsLayer { alpha = fullPlayerAlpha }
+                    ) {
+                        Slider(
+                            value = animatedSliderPosition,
+                            onValueChange = {
+                                sliderPosition = it
+                                isSeeking = true
+                            },
+                            onValueChangeFinished = {
+                                viewModel.seekTo((sliderPosition * uiState.duration).toLong())
+                                isSeeking = false
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Box(contentAlignment = Alignment.Center) {
+                            Text(
+                                text = formatTime(uiState.currentPosition),
+                                style = VynceTheme.typography.label,
+                                color = colors.textSecondary
+                            )
+                            Text(
+                                text = formatTime(uiState.duration),
+                                style = VynceTheme.typography.label,
+                                color = colors.textSecondary
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            IconButton(onClick = { viewModel.toggleShuffle() }) {
                                 Icon(
-                                    imageVector = if (uiState.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                    contentDescription = if (uiState.isPlaying) "Pause" else "Play",
-                                    modifier = Modifier.size(40.dp),
-                                    tint = colors.onPrimary
+                                    imageVector = Icons.Default.Shuffle,
+                                    contentDescription = "Shuffle",
+                                    tint = if (uiState.shuffleEnabled) colors.primary else colors.textSecondary,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(24.dp)
+                            ) {
+                                IconButton(onClick = { viewModel.skipPrevious() }) {
+                                    Icon(
+                                        imageVector = Icons.Default.SkipPrevious,
+                                        contentDescription = "Previous",
+                                        modifier = Modifier.size(36.dp),
+                                        tint = colors.textPrimary
+                                    )
+                                }
+
+                                Surface(
+                                    modifier = Modifier
+                                        .size(72.dp)
+                                        .shadow(8.dp, CircleShape)
+                                        .clickable(enabled = !uiState.isBuffering) { viewModel.togglePlayPause() },
+                                    shape = CircleShape,
+                                    color = colors.primary
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        if (uiState.isBuffering) {
+                                            CircularProgressIndicator(
+                                                color = colors.onPrimary,
+                                                modifier = Modifier.size(32.dp),
+                                                strokeWidth = 3.dp
+                                            )
+                                        } else {
+                                            Icon(
+                                                imageVector = if (uiState.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                                contentDescription = if (uiState.isPlaying) "Pause" else "Play",
+                                                modifier = Modifier.size(40.dp),
+                                                tint = colors.onPrimary
+                                            )
+                                        }
+                                    }
+                                }
+
+                                IconButton(onClick = { viewModel.skipNext() }) {
+                                    Icon(
+                                        imageVector = Icons.Default.SkipNext,
+                                        contentDescription = "Next",
+                                        modifier = Modifier.size(36.dp),
+                                        tint = colors.textPrimary
+                                    )
+                                }
+                            }
+
+                            IconButton(onClick = { viewModel.toggleRepeat() }) {
+                                Icon(
+                                    imageVector = when (uiState.repeatMode) {
+                                        Player.REPEAT_MODE_ONE -> Icons.Default.RepeatOne
+                                        Player.REPEAT_MODE_ALL -> Icons.Default.Repeat
+                                        else -> Icons.Default.Repeat
+                                    },
+                                    contentDescription = "Repeat",
+                                    tint = if (uiState.repeatMode != Player.REPEAT_MODE_OFF) colors.primary else colors.textSecondary,
+                                    modifier = Modifier.size(24.dp)
                                 )
                             }
                         }
-
-                        IconButton(onClick = { viewModel.skipNext() }) {
-                            Icon(
-                                imageVector = Icons.Default.SkipNext,
-                                contentDescription = "Next",
-                                modifier = Modifier.size(36.dp),
-                                tint = colors.textPrimary
-                            )
-                        }
                     }
 
-                    IconButton(onClick = { viewModel.toggleRepeat() }) {
-                        Icon(
-                            imageVector = when (uiState.repeatMode) {
-                                Player.REPEAT_MODE_ONE -> Icons.Default.RepeatOne
-                                Player.REPEAT_MODE_ALL -> Icons.Default.Repeat
-                                else -> Icons.Default.Repeat
-                            },
-                            contentDescription = "Repeat",
-                            tint = if (uiState.repeatMode != Player.REPEAT_MODE_OFF) colors.primary else colors.textSecondary,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
+                    Spacer(modifier = Modifier.height(32.dp))
                 }
-
-                Spacer(modifier = Modifier.height(32.dp))
             }
 
-            // Mini Player UI (Overlay when collapsed)
-            if (expansionProgress() < 1f) {
+            // Mini Player UI (Fades out as we expand)
+            if (progress < 0.8f) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(72.dp + bottomPadding)
-                        .padding(bottom = bottomPadding)
-                        .align(Alignment.BottomCenter)
+                        .height(72.dp)
+                        .align(Alignment.TopCenter)
                         .graphicsLayer {
-                            alpha = 1f - expansionProgress()
+                            alpha = miniPlayerAlpha
+                            translationY = (-20f * progress)
                         }
                 ) {
                     MiniPlayer(
@@ -413,43 +434,50 @@ fun TabbedQueueContent(
     var selectedTab by remember { mutableIntStateOf(0) }
     val tabs = listOf("UP NEXT", "LYRICS", "RELATED")
 
-    Column(
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .fillMaxHeight(0.85f)
+            .fillMaxHeight(0.85f),
+        color = colors.surface
     ) {
-        TabRow(
-            selectedTabIndex = selectedTab,
-            containerColor = colors.surface,
-            contentColor = colors.primary,
-            indicator = { tabPositions ->
-                TabRowDefaults.SecondaryIndicator(
-                    Modifier.tabIndicatorOffset(tabPositions[selectedTab]),
-                    color = colors.primary
-                )
-            },
-            divider = {}
-        ) {
-            tabs.forEachIndexed { index, title ->
-                Tab(
-                    selected = selectedTab == index,
-                    onClick = { selectedTab = index },
-                    text = {
-                        Text(
-                            text = title,
-                            style = VynceTheme.typography.label.copy(fontWeight = FontWeight.Bold),
-                            color = if (selectedTab == index) colors.primary else colors.textSecondary
-                        )
-                    }
-                )
+        Column {
+            SecondaryTabRow(
+                selectedTabIndex = selectedTab,
+                containerColor = colors.surface,
+                contentColor = colors.primary,
+                indicator = {
+                    TabRowDefaults.SecondaryIndicator(
+                        Modifier.tabIndicatorOffset(selectedTab),
+                        color = colors.primary
+                    )
+                },
+                divider = {}
+            ) {
+                tabs.forEachIndexed { index, title ->
+                    Tab(
+                        selected = selectedTab == index,
+                        onClick = { selectedTab = index },
+                        text = {
+                            Text(
+                                text = title,
+                                style = VynceTheme.typography.label.copy(fontWeight = FontWeight.Bold),
+                                color = if (selectedTab == index) colors.primary else colors.textSecondary
+                            )
+                        }
+                    )
+                }
             }
-        }
 
-        Box(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
-            when (selectedTab) {
-                0 -> QueueTab(uiState, onPlayItem, onRemoveItem, onMoveItem, onToggleAutoplay)
-                1 -> LyricsTab(lyrics)
-                2 -> RelatedTab(uiState.relatedSongs)
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp)
+            ) {
+                when (selectedTab) {
+                    0 -> QueueTab(uiState, onPlayItem, onRemoveItem, onMoveItem, onToggleAutoplay)
+                    1 -> LyricsTab(lyrics)
+                    2 -> RelatedTab(uiState.relatedSongs)
+                }
             }
         }
     }
@@ -477,7 +505,7 @@ fun QueueTab(
                     style = VynceTheme.typography.label,
                     color = colors.textSecondary
                 )
-                
+
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = "Autoplay",

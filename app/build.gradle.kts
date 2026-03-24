@@ -47,6 +47,7 @@ android {
 
 
             )
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
     compileOptions {
@@ -99,6 +100,7 @@ dependencies {
     ksp(libs.androidx.room.compiler)
     implementation(libs.gravatar)
     implementation(libs.gravatar.ui)
+    implementation(libs.androidx.core.splashscreen)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

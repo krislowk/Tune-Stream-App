@@ -20,7 +20,9 @@ data class YtClient(
             osVersion = osVersion,
             gl = locale.gl,
             hl = locale.hl,
-            visitorData = visitorData
+            visitorData = visitorData,
+            androidSdkVersion = if (clientName == "ANDROID_MUSIC") 33 else null,
+            platform = if (clientName == "ANDROID_MUSIC") "MOBILE" else null
         )
     )
     companion object {
@@ -86,9 +88,9 @@ data class YtClient(
         )
         val ANDROID_MUSIC = YtClient(
             clientName = "ANDROID_MUSIC",
-            clientVersion = "5.01",
-            api_key = "AIzaSyAOghZGza2MQSZkY_zfZ370N-PUdXEo8AI",
-            userAgent = USER_AGENT_ANDROID,
+            clientVersion = "9.11.54",
+            api_key = "AIzaSyA8eiZmM1FaDVjRy-df2KTyQ_vz_yYM39w",
+            userAgent = "com.google.android.apps.youtube.music/9.11.54 (Linux; U; Android 13; en_US)",
             clientId = "21",
         )
 

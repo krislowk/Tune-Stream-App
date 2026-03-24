@@ -60,9 +60,9 @@ class Innertube() : ApiProvider {
 
     override var proxy: Proxy? = null
 
-    override var useLoginForBrowse: Boolean = true
+    override var useLoginForBrowse: Boolean = false
 
-    override var visitorData: String = "CgtsZG1ySnZiQWtSbyiMjuGSBg%3D%3D"
+    override var visitorData: String = "CgtsZG1ySnZiQWtSbyiMjuGSBg=="
 
     override var cookie: String? = null
         set(value) {
@@ -103,9 +103,9 @@ class Innertube() : ApiProvider {
                 }
 
                 install(HttpTimeout) {
-                    requestTimeoutMillis = 15000
-                    connectTimeoutMillis = 10000
-                    socketTimeoutMillis = 10000
+                    requestTimeoutMillis = 60000
+                    connectTimeoutMillis = 30000
+                    socketTimeoutMillis = 45000
                 }
 
                 install(Logging) {
@@ -123,11 +123,16 @@ class Innertube() : ApiProvider {
         contentType(ContentType.Application.Json)
 
         headers {
-            append("X-Goog-Api-Format-Version", "1")
-            append("X-YouTube-Client-Name", client.clientId /* Not a typo. The Client-Name header does contain the client id. */)
-            append("X-YouTube-Client-Version", client.clientVersion)
-            append("X-Origin", YtClient.ORIGIN_YOUTUBE_MUSIC)
-            append("Referer", YtClient.REFERER_YOUTUBE_MUSIC)
+            append("x-goog-api-key", client.api_key)
+            append("x-youtube-client-name", client.clientId)
+            append("x-youtube-client-version", client.clientVersion)
+            if (visitorData.isNotBlank()) {
+                append("x-goog-visitor-id", visitorData)
+            }
+            client.referer?.let {
+                append("Referer", it)
+                append("Origin", it.trimEnd('/'))
+            }
 
             if (setLogin) {
                 cookie?.let { cookie ->
@@ -142,8 +147,8 @@ class Innertube() : ApiProvider {
         }
         userAgent(client.userAgent)
         parameter("key", client.api_key)
-        parameter("prettyPrint", false)
     }
+
     override suspend fun search(
         client: YtClient,
         query: String?,
@@ -190,20 +195,26 @@ class Innertube() : ApiProvider {
         browseId: String?,
         params: String?,
         continuation: String?,
-        setLogin: Boolean
+        setLogin: Boolean,
     ): BrowseResponse = sharedClient.post("browse") {
         ytClient(client, setLogin = setLogin || useLoginForBrowse)
-        setBody(
-            BrowseBody(
-                context = client.toContext(locale, visitorData),
-                browseId = browseId,
-                params = params
-            )
-        )
-        parameter("continuation", continuation)
-        parameter("ctoken", continuation)
         if (continuation != null) {
-            parameter("type", "next")
+            parameter("continuation", continuation)
+            parameter("ctoken", continuation)
+            setBody(
+                BrowseBody(
+                    context = client.toContext(locale, visitorData),
+                    continuation = continuation
+                )
+            )
+        } else {
+            setBody(
+                BrowseBody(
+                    context = client.toContext(locale, visitorData),
+                    browseId = browseId,
+                    params = params
+                )
+            )
         }
     }.body()
 
@@ -263,14 +274,14 @@ class Innertube() : ApiProvider {
         client: YtClient,
         videoId: String,
     ): GetTranscriptResponse = sharedClient.post("https://music.youtube.com/youtubei/v1/get_transcript") {
-        parameter("key", "AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX3")
+        parameter("key", client.api_key)
         headers {
             append("Content-Type", "application/json")
         }
         setBody(
             GetTranscriptBody(
                 context = client.toContext(locale, null),
-                params = Base64.encode("\n${11.toChar()}$videoId".toByteArray())
+                params = Base64.Default.encode("\n${11.toChar()}$videoId".toByteArray())
             )
         )
     }.body()

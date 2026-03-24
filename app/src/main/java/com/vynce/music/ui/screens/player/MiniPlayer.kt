@@ -14,6 +14,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -105,13 +106,22 @@ fun MiniPlayer(
 
                 IconButton(
                     onClick = { viewModel.togglePlayPause() },
-                    modifier = Modifier.size(48.dp)
+                    modifier = Modifier.size(48.dp),
+                    enabled = !uiState.isBuffering
                 ) {
-                    Icon(
-                        imageVector = if (uiState.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                        contentDescription = if (uiState.isPlaying) "Pause" else "Play",
-                        tint = colors.primary
-                    )
+                    if (uiState.isBuffering) {
+                        CircularProgressIndicator(
+                            color = colors.primary,
+                            modifier = Modifier.size(24.dp),
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Icon(
+                            imageVector = if (uiState.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            contentDescription = if (uiState.isPlaying) "Pause" else "Play",
+                            tint = colors.primary
+                        )
+                    }
                 }
             }
         }

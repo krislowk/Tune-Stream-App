@@ -2,6 +2,7 @@ package com.vynce.music.ui.screens.artist
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.vynce.music.provider.YoutubeProvider
 import com.vynce.vynceclient.pages.ArtistPage
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -26,7 +27,10 @@ class ArtistViewModel @Inject constructor(
         viewModelScope.launch {
             _isLoading.value = true
             repository.getArtist(browseId)
-                .catch { _isLoading.value = false }
+                .catch { e -> 
+                    _isLoading.value = false
+                    FirebaseCrashlytics.getInstance().recordException(e)
+                }
                 .collect {
                     _isLoading.value = false
                     _artist.value = it

@@ -6,6 +6,7 @@ import com.vynce.vynceclient.models.ArtistItem
 import com.vynce.vynceclient.models.BrowseEndpoint
 import com.vynce.vynceclient.models.MusicCarouselShelfRenderer
 import com.vynce.vynceclient.models.MusicResponsiveListItemRenderer
+import com.vynce.vynceclient.models.MusicShelfRenderer
 import com.vynce.vynceclient.models.MusicTwoRowItemRenderer
 import com.vynce.vynceclient.models.PlaylistItem
 import com.vynce.vynceclient.models.SongItem
@@ -44,6 +45,20 @@ data class HomePage(
                     }.ifEmpty {
                         return null
                     }
+                )
+            }
+
+            fun fromMusicShelfRenderer(renderer: MusicShelfRenderer): Section? {
+                val items = renderer.contents?.mapNotNull {
+                    fromMusicResponsiveListItemRenderer(it.musicResponsiveListItemRenderer)
+                } ?: return null
+                if (items.isEmpty()) return null
+                return Section(
+                    title = renderer.title?.runs?.firstOrNull()?.text ?: return null,
+                    label = null,
+                    thumbnail = null,
+                    endpoint = renderer.bottomEndpoint?.browseEndpoint,
+                    items = items
                 )
             }
 

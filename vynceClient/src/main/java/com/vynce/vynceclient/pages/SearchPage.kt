@@ -55,10 +55,10 @@ object SearchPage {
                     thumbnail = renderer.thumbnail?.musicThumbnailRenderer?.getThumbnailUrl() ?: return null,
                     shuffleEndpoint = renderer.menu?.menuRenderer?.items
                         ?.find { it.menuNavigationItemRenderer?.icon?.iconType == "MUSIC_SHUFFLE" }
-                        ?.menuNavigationItemRenderer?.navigationEndpoint?.watchPlaylistEndpoint ?: return null,
-                    radioEndpoint = renderer.menu.menuRenderer.items
-                        .find { it.menuNavigationItemRenderer?.icon?.iconType == "MIX" }
-                        ?.menuNavigationItemRenderer?.navigationEndpoint?.watchPlaylistEndpoint ?: return null
+                        ?.menuNavigationItemRenderer?.navigationEndpoint?.watchPlaylistEndpoint,
+                    radioEndpoint = renderer.menu?.menuRenderer?.items
+                        ?.find { it.menuNavigationItemRenderer?.icon?.iconType == "MIX" }
+                        ?.menuNavigationItemRenderer?.navigationEndpoint?.watchPlaylistEndpoint
                 )
             }
             renderer.isAlbum -> {
@@ -73,7 +73,7 @@ object SearchPage {
                             name = it.text,
                             id = it.navigationEndpoint?.browseEndpoint?.browseId
                         )
-                    } ?: return null,
+                    },
                     year = secondaryLine.getOrNull(2)?.firstOrNull()?.text?.toIntOrNull(),
                     thumbnail = renderer.thumbnail?.musicThumbnailRenderer?.getThumbnailUrl() ?: return null,
                     explicit = renderer.badges?.find {
@@ -95,16 +95,16 @@ object SearchPage {
                     } ?: return null,
                     songCountText = renderer.flexColumns.getOrNull(1)
                         ?.musicResponsiveListItemFlexColumnRenderer?.text?.runs
-                        ?.lastOrNull()?.text ?: return null,
+                        ?.lastOrNull()?.text,
                     thumbnail = renderer.thumbnail?.musicThumbnailRenderer?.getThumbnailUrl() ?: return null,
                     playEndpoint = renderer.overlay?.musicItemThumbnailOverlayRenderer?.content
-                        ?.musicPlayButtonRenderer?.playNavigationEndpoint?.watchPlaylistEndpoint ?: return null,
+                        ?.musicPlayButtonRenderer?.playNavigationEndpoint?.watchPlaylistEndpoint,
                     shuffleEndpoint = renderer.menu?.menuRenderer?.items
                         ?.find { it.menuNavigationItemRenderer?.icon?.iconType == "MUSIC_SHUFFLE" }
-                        ?.menuNavigationItemRenderer?.navigationEndpoint?.watchPlaylistEndpoint ?: return null,
-                    radioEndpoint = renderer.menu.menuRenderer.items
-                        .find { it.menuNavigationItemRenderer?.icon?.iconType == "MIX" }
-                        ?.menuNavigationItemRenderer?.navigationEndpoint?.watchPlaylistEndpoint ?: return null
+                        ?.menuNavigationItemRenderer?.navigationEndpoint?.watchPlaylistEndpoint,
+                    radioEndpoint = renderer.menu?.menuRenderer?.items
+                        ?.find { it.menuNavigationItemRenderer?.icon?.iconType == "MIX" }
+                        ?.menuNavigationItemRenderer?.navigationEndpoint?.watchPlaylistEndpoint
                 )
             }
             else -> null

@@ -68,7 +68,7 @@ object SearchSuggestionPage {
                             name = it.text,
                             id = it.navigationEndpoint?.browseEndpoint?.browseId
                         )
-                    } ?: return null,
+                    },
                     year = secondaryLine.lastOrNull()?.firstOrNull()?.text?.toIntOrNull(),
                     thumbnail = renderer.thumbnail?.musicThumbnailRenderer?.getThumbnailUrl() ?: return null,
                     explicit = renderer.badges?.find {

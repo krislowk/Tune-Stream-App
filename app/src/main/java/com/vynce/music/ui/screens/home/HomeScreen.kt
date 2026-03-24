@@ -108,19 +108,54 @@ fun HomeScreen(
                             }
                         }
 
-                        val quickPicksSection = state.data.sections.find {
-                            it.title.contains(
-                                "Quick",
-                                ignoreCase = true
-                            )
-                        }
-                        val otherSections = state.data.sections.filter { it != quickPicksSection }
 
-                        if (quickPicksSection != null) {
-                            item {
+
+                        val quickPicksKeywords = listOf(
+                            "quick",
+                            "Long listens",
+                            "Trending songs for you",
+                            "Trending in Shorts"
+                        )
+
+                        items(
+                            items = state.data.sections,
+                            key = { section -> section.title }
+                        ) { section ->
+
+                            val isQuickPick = quickPicksKeywords.any { keyword ->
+                                section.title.contains(keyword, ignoreCase = true)
+                            }
+
+                            if (isQuickPick) {
                                 QuickPicksCarousel(
-                                    title = quickPicksSection.title,
-                                    items = quickPicksSection.items,
+                                        title = section.title,
+                                        items = section.items,
+                                        onItemClick = { item ->
+                                            when (item) {
+                                                is SongItem -> {
+                                                    playerViewModel.play(item.toMediaItem())
+                                                }
+
+                                                is AlbumItem -> onItemClick("album", item.browseId)
+                                                is PlaylistItem -> onItemClick("playlist", item.id)
+                                                is ArtistItem -> onItemClick("artist", item.id)
+                                            }
+                                        },
+                                        onPlayAllClick = {
+                                            val songs =
+                                                section.items.filterIsInstance<SongItem>()
+                                            if (songs.isNotEmpty()) {
+                                                playerViewModel.play(songs.first().toMediaItem())
+                                                songs.drop(1).forEach { song ->
+                                                    playerViewModel.addToQueue(song.toMediaItem())
+                                                }
+                                            }
+                                        }
+                                    )
+                            } else {
+                                CarouselList(
+                                    title = section.title,
+                                    items = section.items,
                                     onItemClick = { item ->
                                         when (item) {
                                             is SongItem -> {
@@ -133,8 +168,7 @@ fun HomeScreen(
                                         }
                                     },
                                     onPlayAllClick = {
-                                        val songs =
-                                            quickPicksSection.items.filterIsInstance<SongItem>()
+                                        val songs = section.items.filterIsInstance<SongItem>()
                                         if (songs.isNotEmpty()) {
                                             playerViewModel.play(songs.first().toMediaItem())
                                             songs.drop(1).forEach { song ->
@@ -144,33 +178,6 @@ fun HomeScreen(
                                     }
                                 )
                             }
-                        }
-
-                        items(otherSections) { section ->
-                            CarouselList(
-                                title = section.title,
-                                items = section.items,
-                                onItemClick = { item ->
-                                    when (item) {
-                                        is SongItem -> {
-                                            playerViewModel.play(item.toMediaItem())
-                                        }
-
-                                        is AlbumItem -> onItemClick("album", item.browseId)
-                                        is PlaylistItem -> onItemClick("playlist", item.id)
-                                        is ArtistItem -> onItemClick("artist", item.id)
-                                    }
-                                },
-                                onPlayAllClick = {
-                                    val songs = section.items.filterIsInstance<SongItem>()
-                                    if (songs.isNotEmpty()) {
-                                        playerViewModel.play(songs.first().toMediaItem())
-                                        songs.drop(1).forEach { song ->
-                                            playerViewModel.addToQueue(song.toMediaItem())
-                                        }
-                                    }
-                                }
-                            )
                         }
                     }
                 }
