@@ -60,12 +60,11 @@ class SearchViewModel @Inject constructor() : ViewModel() {
     private fun fetchSuggestions(query: String) {
         viewModelScope.launch {
             delay(200)
-            _searchResult.value = null
             Youtube.searchSuggestions(query)
                 .onSuccess { _suggestions.value = it }
                 .onFailure {
                     FirebaseCrashlytics.getInstance().recordException(it)
-                    throw it }
+                }
         }
     }
 

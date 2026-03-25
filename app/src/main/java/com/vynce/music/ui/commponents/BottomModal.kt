@@ -1,11 +1,5 @@
 package com.vynce.music.ui.commponents
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
@@ -99,14 +93,10 @@ fun BottomModal(
         content(PaddingValues(bottom = if (showSheet && !isExpanded) peekHeight else 0.dp))
 
         // Mini Player Peek (Visible when not expanded)
-        AnimatedVisibility(
-            visible = showSheet && !isExpanded,
-            enter = fadeIn(tween(100)) + slideInVertically { it },
-            exit = fadeOut(tween(100)) + slideOutVertically { -it / 2 },
-            modifier = Modifier.align(Alignment.BottomCenter)
-        ) {
+        if (showSheet && !isExpanded) {
             Box(
                 modifier = Modifier
+                    .align(Alignment.BottomCenter)
                     .fillMaxWidth()
                     .height(peekHeight + navBarPadding)
                     .pointerInput(Unit) {

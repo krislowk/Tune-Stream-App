@@ -11,7 +11,9 @@ import com.vynce.vynceclient.models.YTItem
 import com.vynce.vynceclient.models.oddElements
 import com.vynce.vynceclient.models.splitBySeparator
 import com.vynce.vynceclient.utils.parseTime
+import kotlinx.serialization.Serializable
 
+@Serializable
 data class SearchResult(
     val items: List<YTItem>,
     val continuation: String? = null,

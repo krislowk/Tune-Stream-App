@@ -19,6 +19,9 @@ interface SongDao {
     @Query("SELECT * FROM songs WHERE contentUri = :uri")
     suspend fun getSongByUri(uri: String): Song?
 
+    @Query("SELECT * FROM songs WHERE contentUri IN (:uris)")
+    fun getSongsByUris(uris: List<String>): Flow<List<Song>>
+
     @Query("SELECT * FROM songs WHERE isLiked = 1")
     fun getLikedSongs(): Flow<List<Song>>
 

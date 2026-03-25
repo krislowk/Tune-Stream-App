@@ -23,6 +23,8 @@ class SongRepository @Inject constructor(
 
     fun getAllSongs(): Flow<List<Song>> = songDao.getAllSongs()
 
+    fun getSongsByUris(uris: List<String>): Flow<List<Song>> = songDao.getSongsByUris(uris)
+
     fun getLikedSongs(): Flow<List<Song>> = songDao.getLikedSongs()
 
     suspend fun toggleLike(song: Song) {
@@ -67,5 +69,10 @@ class SongRepository @Inject constructor(
 
     suspend fun clearHistory() {
         historyDao.clearHistory()
+    }
+
+    suspend fun cleanupHistory(days: Int = 30) {
+        val expiryTime = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(days.toLong())
+        historyDao.deleteOldHistory(expiryTime)
     }
 }

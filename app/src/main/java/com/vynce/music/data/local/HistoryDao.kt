@@ -20,4 +20,7 @@ interface HistoryDao {
 
     @Query("DELETE FROM history")
     suspend fun clearHistory()
+
+    @Query("DELETE FROM history WHERE timestamp < :timestamp")
+    suspend fun deleteOldHistory(timestamp: Long)
 }

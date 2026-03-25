@@ -101,6 +101,7 @@ dependencies {
     implementation(libs.gravatar)
     implementation(libs.gravatar.ui)
     implementation(libs.androidx.core.splashscreen)
+    implementation(libs.reorderable)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

@@ -1,7 +1,6 @@
 package com.vynce.music.ui.screens.home
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,14 +12,19 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -30,6 +34,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -50,40 +55,32 @@ import com.vynce.vynceclient.models.SongItem
 fun HomeScreen(
     playerViewModel: PlayerViewModel,
     onItemClick: (String, String?) -> Unit,
+    onSettingsClick: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val refreshing = viewModel.refreshing
-
+    val user by viewModel.currentUser.collectAsState()
 
     PullToRefreshBox(
         isRefreshing = refreshing,
         onRefresh = { viewModel.refresh() },
         modifier = Modifier.fillMaxSize()
     ) {
-        Box(modifier = Modifier.fillMaxSize()) {
+        Box(modifier = Modifier.fillMaxSize().background(VynceTheme.colors.background)) {
             when (val state = uiState) {
-
-                is HomeUiState.Loading -> {
-                    HomeSkeleton()
-                }
-
-                is HomeUiState.Error -> {
-                    Text(
-                        text = state.message,
-                        modifier = Modifier.align(Alignment.Center),
-                        color = MaterialTheme.colorScheme.error
-                    )
-                }
-
+                is HomeUiState.Loading -> HomeSkeleton()
+                is HomeUiState.Error -> ErrorState(state.message)
                 is HomeUiState.Success -> {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(bottom = 80.dp)
+                        contentPadding = PaddingValues(bottom = 88.dp)
                     ) {
                         item {
-                            val user by viewModel.currentUser.collectAsState()
-                            HomeHeader(user = user)
+                            HomeTopBar(
+                                user = user,
+                                onSettingsClick = onSettingsClick
+                            )
                         }
 
                         if (state.data.filters.isNotEmpty()) {
@@ -100,80 +97,50 @@ fun HomeScreen(
                                             label = { Text(filter.title) },
                                             colors = FilterChipDefaults.filterChipColors(
                                                 selectedContainerColor = VynceTheme.colors.primary,
-                                                selectedLabelColor = VynceTheme.colors.onPrimary
-                                            )
+                                                selectedLabelColor = VynceTheme.colors.onPrimary,
+                                                containerColor = VynceTheme.colors.surface,
+                                                labelColor = VynceTheme.colors.textSecondary
+                                            ),
+                                            border = null,
+                                            shape = RoundedCornerShape(12.dp)
                                         )
                                     }
                                 }
                             }
                         }
 
-
-
-                        val quickPicksKeywords = listOf(
-                            "quick",
-                            "Long listens",
-                            "Trending songs for you",
-                            "Trending in Shorts"
-                        )
-
                         items(
                             items = state.data.sections,
-                            key = { section -> section.title }
+                            key = { it.title + it.items.size }
                         ) { section ->
-
-                            val isQuickPick = quickPicksKeywords.any { keyword ->
-                                section.title.contains(keyword, ignoreCase = true)
-                            }
+                            val isQuickPick = section.title.contains("quick", ignoreCase = true) ||
+                                    section.title.contains("trending", ignoreCase = true)
 
                             if (isQuickPick) {
                                 QuickPicksCarousel(
-                                        title = section.title,
-                                        items = section.items,
-                                        onItemClick = { item ->
-                                            when (item) {
-                                                is SongItem -> {
-                                                    playerViewModel.play(item.toMediaItem())
-                                                }
-
-                                                is AlbumItem -> onItemClick("album", item.browseId)
-                                                is PlaylistItem -> onItemClick("playlist", item.id)
-                                                is ArtistItem -> onItemClick("artist", item.id)
-                                            }
-                                        },
-                                        onPlayAllClick = {
-                                            val songs =
-                                                section.items.filterIsInstance<SongItem>()
-                                            if (songs.isNotEmpty()) {
-                                                playerViewModel.play(songs.first().toMediaItem())
-                                                songs.drop(1).forEach { song ->
-                                                    playerViewModel.addToQueue(song.toMediaItem())
-                                                }
-                                            }
+                                    title = section.title,
+                                    items = section.items,
+                                    onItemClick = { item ->
+                                        handleItemClick(item, onItemClick, playerViewModel, section.items)
+                                    },
+                                    onPlayAllClick = {
+                                        val songs = section.items.filterIsInstance<SongItem>()
+                                        if (songs.isNotEmpty()) {
+                                            playerViewModel.playAll(songs.map { it.toMediaItem() })
                                         }
-                                    )
+                                    }
+                                )
                             } else {
                                 CarouselList(
                                     title = section.title,
                                     items = section.items,
                                     onItemClick = { item ->
-                                        when (item) {
-                                            is SongItem -> {
-                                                playerViewModel.play(item.toMediaItem())
-                                            }
-
-                                            is AlbumItem -> onItemClick("album", item.browseId)
-                                            is PlaylistItem -> onItemClick("playlist", item.id)
-                                            is ArtistItem -> onItemClick("artist", item.id)
-                                        }
+                                        handleItemClick(item, onItemClick, playerViewModel, section.items)
                                     },
                                     onPlayAllClick = {
                                         val songs = section.items.filterIsInstance<SongItem>()
                                         if (songs.isNotEmpty()) {
-                                            playerViewModel.play(songs.first().toMediaItem())
-                                            songs.drop(1).forEach { song ->
-                                                playerViewModel.addToQueue(song.toMediaItem())
-                                            }
+                                            playerViewModel.playAll(songs.map { it.toMediaItem() })
                                         }
                                     }
                                 )
@@ -186,105 +153,45 @@ fun HomeScreen(
     }
 }
 
-@Composable
-fun HomeSkeleton() {
-    Column(modifier = Modifier.fillMaxSize()) {
-        // Header Skeleton
-        Column(modifier = Modifier.padding(16.dp)) {
-            Box(
-                modifier = Modifier
-                    .width(200.dp)
-                    .height(32.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(VynceTheme.colors.surface.copy(alpha = 0.5f))
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Box(
-                modifier = Modifier
-                    .width(150.dp)
-                    .height(20.dp)
-                    .clip(RoundedCornerShape(4.dp))
-                    .background(VynceTheme.colors.surface.copy(alpha = 0.3f))
-            )
-        }
-
-        repeat(3) {
-            Column(modifier = Modifier.padding(vertical = 16.dp)) {
-                Box(
-                    modifier = Modifier
-                        .padding(horizontal = 16.dp)
-                        .width(120.dp)
-                        .height(24.dp)
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(VynceTheme.colors.surface.copy(alpha = 0.4f))
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    items(5) {
-                        Column(modifier = Modifier.width(150.dp)) {
-                            Box(
-                                modifier = Modifier
-                                    .size(150.dp)
-                                    .clip(RoundedCornerShape(16.dp))
-                                    .background(VynceTheme.colors.surface.copy(alpha = 0.3f))
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(16.dp)
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .background(VynceTheme.colors.surface.copy(alpha = 0.2f))
-                            )
-                        }
-                    }
-                }
-            }
-        }
+private fun handleItemClick(
+    item: Any,
+    onItemClick: (String, String?) -> Unit,
+    playerViewModel: PlayerViewModel,
+    sectionItems: List<Any>
+) {
+    when (item) {
+        is SongItem -> playerViewModel.play(item.toMediaItem())
+        is AlbumItem -> onItemClick("album", item.browseId)
+        is PlaylistItem -> onItemClick("playlist", item.id)
+        is ArtistItem -> onItemClick("artist", item.id)
     }
 }
 
 @Composable
-fun HomeHeader(user: User?) {
-    val calendar = java.util.Calendar.getInstance()
-    val hour = calendar.get(java.util.Calendar.HOUR_OF_DAY)
-    val greeting = when (hour) {
-        in 5..11 -> "Rise and shine ☀️"
-        in 12..16 -> "Good Afternoon ☕"
-        in 17..20 -> "Cozy Evening 🌙"
-        in 21..23 -> "Quiet Night ✨"
-        else -> "Night Owl? 🦉"
-    }
-
-    val subtitle = user?.name?.let { "Ready for some music, $it?" } ?: when (hour) {
-        in 5..11 -> "Start your day with some energy!"
-        in 12..16 -> "Need a midday break?"
-        in 17..20 -> "Wind down with your favorites."
-        in 21..23 -> "Time for some relaxing beats."
-        else -> "Keep the vibe going."
-    }
-
+fun HomeTopBar(
+    user: User?,
+    onSettingsClick: () -> Unit
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .statusBarsPadding()
             .padding(horizontal = 16.dp, vertical = 24.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
+            val greeting = getGreeting()
             Text(
                 text = greeting,
                 style = VynceTheme.typography.title.copy(
-                    fontSize = 28.sp,
+                    fontSize = 32.sp,
                     fontWeight = FontWeight.Black
                 ),
                 color = VynceTheme.colors.textPrimary
             )
             Text(
-                text = subtitle,
+                text = user?.name?.let { "Welcome back, $it" } ?: "Discover new music",
                 style = VynceTheme.typography.body.copy(
                     fontSize = 16.sp,
                     color = VynceTheme.colors.textSecondary
@@ -292,14 +199,66 @@ fun HomeHeader(user: User?) {
             )
         }
 
-        AsyncImage(
-            model = user?.avatarUrl ?: "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&s=200",
-            contentDescription = "Profile",
-            modifier = Modifier
-                .size(48.dp)
-                .clip(CircleShape)
-                .background(VynceTheme.colors.surface)
-                .clickable { /* Navigate to profile settings */ }
-        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconButton(
+                onClick = onSettingsClick,
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(VynceTheme.colors.surface)
+            ) {
+                Icon(
+                    Icons.Default.Settings,
+                    contentDescription = "Settings",
+                    tint = VynceTheme.colors.textPrimary,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            
+            Spacer(Modifier.width(12.dp))
+
+            AsyncImage(
+                model = user?.avatarUrl ?: "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&s=200",
+                contentDescription = "Profile",
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(VynceTheme.colors.surface),
+                contentScale = ContentScale.Crop
+            )
+        }
+    }
+}
+
+private fun getGreeting(): String {
+    val calendar = java.util.Calendar.getInstance()
+    return when (calendar.get(java.util.Calendar.HOUR_OF_DAY)) {
+        in 5..11 -> "Good Morning"
+        in 12..16 -> "Good Afternoon"
+        in 17..20 -> "Good Evening"
+        else -> "Good Night"
+    }
+}
+
+@Composable
+fun ErrorState(message: String) {
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Text(text = message, color = MaterialTheme.colorScheme.error)
+    }
+}
+
+@Composable
+fun HomeSkeleton() {
+    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+        repeat(4) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp)
+                    .padding(vertical = 8.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(VynceTheme.colors.surface.copy(alpha = 0.5f))
+            )
+        }
     }
 }

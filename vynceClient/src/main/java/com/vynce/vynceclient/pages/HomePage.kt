@@ -13,17 +13,21 @@ import com.vynce.vynceclient.models.SongItem
 import com.vynce.vynceclient.models.YTItem
 import com.vynce.vynceclient.models.filterExplicit
 import com.vynce.vynceclient.models.oddElements
+import kotlinx.serialization.Serializable
 
+@Serializable
 data class HomePage(
     val sections: List<Section>,
     val filters: List<Filter> = emptyList(),
 ) {
+    @Serializable
     data class Filter(
         val title: String,
         val endpoint: BrowseEndpoint,
         val isSelected: Boolean,
     )
 
+    @Serializable
     data class Section(
         val title: String,
         val label: String?,

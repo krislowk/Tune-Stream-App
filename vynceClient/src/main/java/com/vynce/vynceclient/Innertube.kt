@@ -60,7 +60,7 @@ class Innertube() : ApiProvider {
 
     override var proxy: Proxy? = null
 
-    override var useLoginForBrowse: Boolean = false
+    override var useLoginForBrowse: Boolean = true
 
     override var visitorData: String = "CgtsZG1ySnZiQWtSbyiMjuGSBg=="
 

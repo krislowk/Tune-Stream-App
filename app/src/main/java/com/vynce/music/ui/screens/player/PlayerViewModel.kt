@@ -22,6 +22,7 @@ import com.vynce.vynceclient.pages.NextResult
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -65,6 +66,9 @@ class PlayerViewModel @Inject constructor(
     private val _lyrics = MutableStateFlow<String?>(null)
     val lyrics = _lyrics.asStateFlow()
 
+    private var metadataJob: Job? = null
+    private var lastFetchedMediaId: String? = null
+
     init {
         setupController()
         startPositionUpdates()
@@ -82,9 +86,12 @@ class PlayerViewModel @Inject constructor(
     private val playerListener = object : Player.Listener {
         override fun onEvents(player: Player, events: Player.Events) {
             if (events.containsAny(
-                    Player.EVENT_MEDIA_ITEM_TRANSITION, Player.EVENT_PLAYBACK_STATE_CHANGED,
-                    Player.EVENT_IS_PLAYING_CHANGED, Player.EVENT_REPEAT_MODE_CHANGED,
-                    Player.EVENT_SHUFFLE_MODE_ENABLED_CHANGED, Player.EVENT_TIMELINE_CHANGED
+                    Player.EVENT_MEDIA_ITEM_TRANSITION,
+                    Player.EVENT_PLAYBACK_STATE_CHANGED,
+                    Player.EVENT_IS_PLAYING_CHANGED,
+                    Player.EVENT_REPEAT_MODE_CHANGED,
+                    Player.EVENT_SHUFFLE_MODE_ENABLED_CHANGED,
+                    Player.EVENT_TIMELINE_CHANGED
                 )
             ) {
                 syncState()
@@ -92,16 +99,24 @@ class PlayerViewModel @Inject constructor(
 
             if (events.contains(Player.EVENT_MEDIA_ITEM_TRANSITION)) {
                 player.currentMediaItem?.let { item ->
-                    fetchMetadata(item.mediaId)
-                    saveToHistory(item)
-                    updateLikedState(item.mediaId)
+                    onTrackTransition(item)
                 }
             }
         }
     }
 
+    private fun onTrackTransition(item: MediaItem) {
+        val videoId = item.mediaId
+        if (videoId == lastFetchedMediaId) return
+        
+        updateLikedState(videoId)
+        saveToHistory(item)
+        fetchMetadata(videoId)
+    }
+
     private fun updateLikedState(videoId: String) = viewModelScope.launch {
-        _uiState.update { it.copy(isLiked = songRepository.isLiked(videoId)) }
+        val isLiked = songRepository.isLiked(videoId)
+        _uiState.update { it.copy(isLiked = isLiked) }
     }
 
     fun toggleLike() = viewModelScope.launch {
@@ -121,6 +136,8 @@ class PlayerViewModel @Inject constructor(
 
     fun toggleAutoplay() {
         _uiState.update { it.copy(isAutoplayEnabled = !it.isAutoplayEnabled) }
+        // If enabled, trigger a fetch for the current track to populate the queue
+        _uiState.value.currentTrack?.let { fetchMetadata(it.mediaId, force = true) }
     }
 
     private fun saveToHistory(mediaItem: MediaItem) = viewModelScope.launch {
@@ -128,7 +145,7 @@ class PlayerViewModel @Inject constructor(
             title = mediaItem.mediaMetadata.title?.toString() ?: "Unknown",
             artist = mediaItem.mediaMetadata.artist?.toString() ?: "Unknown",
             album = mediaItem.mediaMetadata.albumTitle?.toString(),
-            duration = 0, // Should get from player if possible
+            duration = 0,
             contentUri = mediaItem.mediaId,
             thumbnail = mediaItem.mediaMetadata.artworkUri?.toString() ?: ""
         )
@@ -149,9 +166,6 @@ class PlayerViewModel @Inject constructor(
                     queue = List(p.mediaItemCount) { p.getMediaItemAt(it) }
                 )
             }
-            if (currentItem != null) {
-                updateLikedState(currentItem.mediaId)
-            }
         }
     }
 
@@ -166,31 +180,32 @@ class PlayerViewModel @Inject constructor(
         }
     }
 
-    private fun fetchMetadata(videoId: String) = viewModelScope.launch {
-        _uiState.update { it.copy(isFetchingMetadata = true) }
-        try {
-            val result = withContext(Dispatchers.IO) {
-                Youtube.next(WatchEndpoint(videoId)).getOrNull()
-            } ?: return@launch
+    private fun fetchMetadata(videoId: String, force: Boolean = false) {
+        if (!force && videoId == lastFetchedMediaId) return
+        lastFetchedMediaId = videoId
 
-            val upNextSongs = result.items.map { it.toMediaItem() }
-            _uiState.update { it.copy(upNext = upNextSongs, isFetchingMetadata = false) }
-
-            if (_uiState.value.isAutoplayEnabled && (controller?.mediaItemCount ?: 0) <= 1) {
-                controller?.addMediaItems(upNextSongs)
-            }
-
-            launch { loadLyrics(result) }
-            launch { loadRelated(result) }
-
-        } catch (e: Exception) {
-            if (e !is CancellationException) {
-                FirebaseCrashlytics.getInstance().apply {
-                    setCustomKey("videoId", videoId)
-                    recordException(e)
+        metadataJob?.cancel()
+        metadataJob = viewModelScope.launch {
+            _uiState.update { it.copy(isFetchingMetadata = true) }
+            try {
+                val result = withContext(Dispatchers.IO) {
+                    Youtube.next(WatchEndpoint(videoId)).getOrNull()
+                } ?: run {
+                    _uiState.update { it.copy(isFetchingMetadata = false) }
+                    return@launch
                 }
+
+                // Load sections in parallel
+                launch { loadLyrics(result) }
+                launch { loadRelated(result) }
+                launch { handleNextResult(result) }
+
+            } catch (e: Exception) {
+                if (e !is CancellationException) {
+                    FirebaseCrashlytics.getInstance().recordException(e)
+                }
+                _uiState.update { it.copy(isFetchingMetadata = false) }
             }
-            _uiState.update { it.copy(isFetchingMetadata = false) }
         }
     }
 
@@ -210,15 +225,49 @@ class PlayerViewModel @Inject constructor(
         }
     }
 
+    private suspend fun handleNextResult(result: NextResult) {
+        val allSongs = withContext(Dispatchers.IO) {
+            result.items.map { it.toMediaItem() }
+        }
+        val currentIndexInResult = result.currentIndex ?: 0
+        
+        // Update UI state for "Up Next" tab
+        val upNextList = if (currentIndexInResult >= 0 && currentIndexInResult < allSongs.size) {
+            allSongs.drop(currentIndexInResult + 1)
+        } else {
+            allSongs
+        }
+
+        _uiState.update { it.copy(
+            upNext = upNextList,
+            isFetchingMetadata = false 
+        ) }
+
+        // Sync with Player Queue if Autoplay is on
+        controller?.let { p ->
+            if (_uiState.value.isAutoplayEnabled && allSongs.isNotEmpty()) {
+                val currentQueueIds = (0 until p.mediaItemCount).map { p.getMediaItemAt(it).mediaId }
+                val newQueueIds = allSongs.map { it.mediaId }
+
+                // Only update if the queue is actually different to prevent flickering/re-transition
+                if (currentQueueIds != newQueueIds) {
+                    p.setMediaItems(allSongs, currentIndexInResult, C.TIME_UNSET)
+                }
+            }
+        }
+    }
+
     /* ---------------- Player Controls ---------------- */
 
     fun play(mediaItem: MediaItem) = runPlayer {
-        setMediaItem(mediaItem)
+        lastFetchedMediaId = null // Reset to ensure metadata fetch for new items
+        setMediaItems(listOf(mediaItem), 0, C.TIME_UNSET)
         prepare()
         play()
     }
 
     fun playAll(items: List<MediaItem>, startIndex: Int = 0) = runPlayer {
+        lastFetchedMediaId = null
         setMediaItems(items, startIndex, C.TIME_UNSET)
         prepare()
         play()
@@ -259,13 +308,9 @@ class PlayerViewModel @Inject constructor(
 
     fun setSpeed(speed: Float) = runPlayer { setPlaybackSpeed(speed) }
 
-    /* ---------------- Helper ---------------- */
-
     private fun runPlayer(block: MediaController.() -> Unit) {
         controller?.apply(block)
     }
-
-    /* ---------------- Cleanup ---------------- */
 
     override fun onCleared() {
         MediaController.releaseFuture(controllerFuture)
