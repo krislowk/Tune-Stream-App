@@ -60,9 +60,8 @@ fun MiniPlayer(
             .fillMaxWidth()
             .height(72.dp)
             .padding(horizontal = 8.dp, vertical = 4.dp)
-            .clip(RoundedCornerShape(16.dp))
             .clickable(onClick = onClick),
-        color = VynceTheme.colors.surface,
+        color = VynceTheme.colors.background,
         tonalElevation = 8.dp
     ) {
         Box(modifier = Modifier.fillMaxSize()) {

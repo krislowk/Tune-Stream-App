@@ -11,8 +11,6 @@ import com.vynce.music.data.repository.UserRepository
 import com.vynce.vynceclient.Youtube
 import com.vynce.vynceclient.pages.HomePage
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.async
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -31,21 +29,20 @@ class HomeViewModel @Inject constructor(
     val currentUser: StateFlow<User?> = userRepository.currentUser
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
-    private var _refreshing by  mutableStateOf(false)
-    val refreshing = _refreshing
+    var refreshing by mutableStateOf(false)
+        private set
     private var currentParams: String? = null
 
     fun refresh() {
         viewModelScope.launch {
-            _refreshing = true
-            async { fetchHome() }.await()
-            delay(1000)
-            _refreshing = false
+            refreshing = true
+            fetchHomeSuspend(currentParams)
+            refreshing = false
         }
     }
 
     init {
-        fetchHome()
+        fetchHome(null)
     }
 
     fun onFilterSelected(filter: HomePage.Filter) {
@@ -53,18 +50,22 @@ class HomeViewModel @Inject constructor(
     }
 
     fun fetchHome(params: String? = null) {
-        currentParams = params
         viewModelScope.launch {
-            if (_uiState.value !is HomeUiState.Success) {
-                _uiState.value = HomeUiState.Loading
-            }
-                Youtube.home(params= params)
-                    .onSuccess { _uiState.value = HomeUiState.Success(it) }
-                    .onFailure {
-                        FirebaseCrashlytics.getInstance().recordException(it)
-                        _uiState.value = HomeUiState.Error(it.message ?: "Unknown error")
-                    }
+            fetchHomeSuspend(params)
         }
+    }
+
+    private suspend fun fetchHomeSuspend(params: String? = null) {
+        currentParams = params
+        if (_uiState.value !is HomeUiState.Success) {
+            _uiState.value = HomeUiState.Loading
+        }
+        Youtube.home(params = params)
+            .onSuccess { _uiState.value = HomeUiState.Success(it) }
+            .onFailure {
+                FirebaseCrashlytics.getInstance().recordException(it)
+                _uiState.value = HomeUiState.Error(it.message ?: "Unknown error")
+            }
     }
 }
 

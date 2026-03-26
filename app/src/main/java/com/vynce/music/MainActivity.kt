@@ -11,8 +11,11 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,9 +23,16 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -35,10 +45,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.compose.rememberNavController
 import com.vynce.music.data.repository.PreferenceRepository
@@ -61,8 +75,13 @@ class MainActivity : ComponentActivity() {
     lateinit var preferenceRepository: PreferenceRepository
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        
+        var isReady by mutableStateOf(false)
+        splashScreen.setKeepOnScreenCondition { !isReady }
+
         setContent {
             VynceTheme {
                 val context = LocalContext.current
@@ -84,13 +103,11 @@ class MainActivity : ComponentActivity() {
                     hasPermission = isGranted
                 }
 
-                var isInitialized by remember { mutableStateOf(false) }
-
                 LaunchedEffect(Unit) {
                     preferenceRepository.ensureInitialized()
-                    if (!isInitialized) {
+                    if (!isReady) {
                         NewPipe.init(DefaultDownloaderImpl.initDefault())
-                        isInitialized = true
+                        isReady = true
                     }
                 }
 
@@ -103,32 +120,110 @@ class MainActivity : ComponentActivity() {
                 Box(Modifier
                     .fillMaxSize()
                     .background(VynceTheme.colors.background)) {
-                    if (!isInitialized) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.align(Alignment.Center),
-                            color = VynceTheme.colors.primary
-                        )
+                    
+                    if (hasPermission) {
+                        VynceApp()
                     } else {
-                        if (hasPermission) {
-                            VynceApp()
-                        } else {
-                            Column(
-                                modifier = Modifier
-                                    .align(Alignment.Center)
-                                    .padding(24.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
+                        Column(
+                            modifier = Modifier
+                                .align(Alignment.Center)
+                                .padding(24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.MusicNote,
+                                contentDescription = null,
+                                modifier = Modifier.size(64.dp),
+                                tint = VynceTheme.colors.primary
+                            )
+                            Spacer(Modifier.height(16.dp))
+                            Text(
+                                "Vynce needs access to your music files to play them.",
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                color = VynceTheme.colors.textPrimary
+                            )
+                            Spacer(Modifier.height(24.dp))
+                            Button(
+                                onClick = { launcher.launch(permission) },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = VynceTheme.colors.primary,
+                                    contentColor = VynceTheme.colors.onPrimary
+                                ),
+                                shape = RoundedCornerShape(12.dp)
                             ) {
-                                Text("Vynce needs access to your music files to play them.")
-                                Spacer(Modifier.height(16.dp))
-                                Button(onClick = { launcher.launch(permission) }) {
-                                    Text("Grant Permission")
-                                }
+                                Text("Grant Permission")
                             }
                         }
+                    }
+                    
+                    // Extended Splash Transition
+                    AnimatedVisibility(
+                        visible = !isReady,
+                        exit = fadeOut(tween(500)) + scaleOut(targetScale = 1.1f, animationSpec = tween(500))
+                    ) {
+                        SplashScreen()
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+fun SplashScreen() {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(VynceTheme.colors.background),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Box(
+                modifier = Modifier
+                    .size(100.dp)
+                    .clip(CircleShape)
+                    .background(VynceTheme.colors.primary.copy(alpha = 0.1f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.MusicNote,
+                    contentDescription = null,
+                    modifier = Modifier.size(48.dp),
+                    tint = VynceTheme.colors.primary
+                )
+            }
+            
+            Spacer(modifier = Modifier.height(24.dp))
+            
+            Text(
+                text = "VYNCE",
+                style = VynceTheme.typography.title.copy(
+                    letterSpacing = 4.sp,
+                    fontWeight = FontWeight.Black,
+                    fontSize = 24.sp
+                ),
+                color = VynceTheme.colors.textPrimary
+            )
+            
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            Text(
+                text = "Discover your rhythm",
+                style = VynceTheme.typography.body.copy(
+                    letterSpacing = 1.sp,
+                    color = VynceTheme.colors.textSecondary
+                )
+            )
+        }
+        
+        CircularProgressIndicator(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 64.dp)
+                .size(32.dp),
+            color = VynceTheme.colors.primary,
+            strokeWidth = 3.dp
+        )
     }
 }
 

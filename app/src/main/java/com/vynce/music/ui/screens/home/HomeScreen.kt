@@ -1,5 +1,11 @@
 package com.vynce.music.ui.screens.home
 
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -20,12 +26,13 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.WifiOff
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
@@ -33,14 +40,15 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import coil.compose.AsyncImage
-import com.vynce.music.data.model.User
 import com.vynce.music.ui.commponents.CarouselList
 import com.vynce.music.ui.commponents.QuickPicksCarousel
 import com.vynce.music.ui.screens.player.PlayerViewModel
@@ -70,17 +78,17 @@ fun HomeScreen(
         Box(modifier = Modifier.fillMaxSize().background(VynceTheme.colors.background)) {
             when (val state = uiState) {
                 is HomeUiState.Loading -> HomeSkeleton()
-                is HomeUiState.Error -> ErrorState(state.message)
+                is HomeUiState.Error -> ErrorState(
+                    message = state.message,
+                    onRetry = { viewModel.refresh() }
+                )
                 is HomeUiState.Success -> {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(bottom = 88.dp)
                     ) {
                         item {
-                            HomeTopBar(
-                                user = user,
-                                onSettingsClick = onSettingsClick
-                            )
+                            HomeTopBar()
                         }
 
                         if (state.data.filters.isNotEmpty()) {
@@ -168,15 +176,12 @@ private fun handleItemClick(
 }
 
 @Composable
-fun HomeTopBar(
-    user: User?,
-    onSettingsClick: () -> Unit
-) {
+fun HomeTopBar() {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .statusBarsPadding()
-            .padding(horizontal = 16.dp, vertical = 24.dp),
+            .padding(horizontal = 16.dp, vertical = 16.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -189,42 +194,6 @@ fun HomeTopBar(
                     fontWeight = FontWeight.Black
                 ),
                 color = VynceTheme.colors.textPrimary
-            )
-            Text(
-                text = user?.name?.let { "Welcome back, $it" } ?: "Discover new music",
-                style = VynceTheme.typography.body.copy(
-                    fontSize = 16.sp,
-                    color = VynceTheme.colors.textSecondary
-                )
-            )
-        }
-
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(
-                onClick = onSettingsClick,
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(VynceTheme.colors.surface)
-            ) {
-                Icon(
-                    Icons.Default.Settings,
-                    contentDescription = "Settings",
-                    tint = VynceTheme.colors.textPrimary,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-            
-            Spacer(Modifier.width(12.dp))
-
-            AsyncImage(
-                model = user?.avatarUrl ?: "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&s=200",
-                contentDescription = "Profile",
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(VynceTheme.colors.surface),
-                contentScale = ContentScale.Crop
             )
         }
     }
@@ -241,24 +210,144 @@ private fun getGreeting(): String {
 }
 
 @Composable
-fun ErrorState(message: String) {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Text(text = message, color = MaterialTheme.colorScheme.error)
+fun ErrorState(
+    message: String,
+    onRetry: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(
+            imageVector = Icons.Default.WifiOff,
+            contentDescription = null,
+            modifier = Modifier.size(64.dp),
+            tint = VynceTheme.colors.textSecondary.copy(alpha = 0.5f)
+        )
+        
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        Text(
+            text = "Oops! Something went wrong",
+            style = VynceTheme.typography.title,
+            color = VynceTheme.colors.textPrimary
+        )
+        
+        Spacer(modifier = Modifier.height(8.dp))
+        
+        val userFriendlyMessage = when {
+            message.contains("timeout", ignoreCase = true) -> 
+                "The connection timed out. Please check your internet and try again."
+            message.contains("socket", ignoreCase = true) || message.contains("connection", ignoreCase = true) ->
+                "We're having trouble reaching the server. Please check your network."
+            else -> message
+        }
+
+        Text(
+            text = userFriendlyMessage,
+            style = VynceTheme.typography.body,
+            color = VynceTheme.colors.textSecondary,
+            textAlign = TextAlign.Center
+        )
+        
+        Spacer(modifier = Modifier.height(24.dp))
+        
+        Button(
+            onClick = onRetry,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = VynceTheme.colors.primary,
+                contentColor = VynceTheme.colors.onPrimary
+            ),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("Retry")
+        }
     }
+}
+
+fun Modifier.shimmerEffect(): Modifier = composed {
+    val transition = rememberInfiniteTransition(label = "shimmer")
+    val translateAnim by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1000f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1200, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "shimmerTranslate"
+    )
+
+    val shimmerColors = listOf(
+        VynceTheme.colors.surface.copy(alpha = 0.6f),
+        VynceTheme.colors.surface.copy(alpha = 0.2f),
+        VynceTheme.colors.surface.copy(alpha = 0.6f),
+    )
+
+    val brush = Brush.linearGradient(
+        colors = shimmerColors,
+        start = Offset.Zero,
+        end = Offset(x = translateAnim, y = translateAnim)
+    )
+
+    background(brush)
 }
 
 @Composable
 fun HomeSkeleton() {
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        repeat(4) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(200.dp)
-                    .padding(vertical = 8.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(VynceTheme.colors.surface.copy(alpha = 0.5f))
-            )
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .statusBarsPadding()
+    ) {
+        // Top Bar Skeleton
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 24.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Box(modifier = Modifier.size(180.dp, 32.dp).clip(RoundedCornerShape(8.dp)).shimmerEffect())
+                Spacer(Modifier.height(8.dp))
+                Box(modifier = Modifier.size(140.dp, 16.dp).clip(RoundedCornerShape(8.dp)).shimmerEffect())
+            }
+            Box(modifier = Modifier.size(40.dp).clip(CircleShape).shimmerEffect())
+        }
+
+        // Filters Skeleton
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.padding(bottom = 16.dp)
+        ) {
+            items(5) {
+                Box(modifier = Modifier.size(80.dp, 32.dp).clip(RoundedCornerShape(12.dp)).shimmerEffect())
+            }
+        }
+
+        // Carousels Skeleton
+        repeat(3) {
+            Column(modifier = Modifier.padding(vertical = 12.dp)) {
+                Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).size(120.dp, 24.dp).clip(RoundedCornerShape(8.dp)).shimmerEffect())
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    items(4) {
+                        Column {
+                            Box(modifier = Modifier.size(140.dp).clip(RoundedCornerShape(16.dp)).shimmerEffect())
+                            Spacer(Modifier.height(8.dp))
+                            Box(modifier = Modifier.size(100.dp, 16.dp).clip(RoundedCornerShape(4.dp)).shimmerEffect())
+                        }
+                    }
+                }
+            }
         }
     }
 }

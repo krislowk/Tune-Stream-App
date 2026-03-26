@@ -120,12 +120,15 @@ fun BottomModal(
                 onDismissRequest = { onExpandChange(false) },
                 sheetState = sheetState,
                 dragHandle = null,
-                containerColor = VynceTheme.colors.surface,
+                containerColor = Color.Transparent, // Let the content define the container (Surface, Shape, etc.)
                 scrimColor = Color.Black.copy(alpha = 0.5f),
                 shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
                 contentWindowInsets = { WindowInsets(0) }
             ) {
-                Box(modifier = Modifier.fillMaxSize()) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.BottomCenter // Ensures the sheet content aligns to the bottom
+                ) {
                     sheetContent(modalProgress)
                 }
             }

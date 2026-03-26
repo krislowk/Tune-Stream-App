@@ -1,6 +1,11 @@
 package com.vynce.music.ui.screens.player
 
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -62,9 +67,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -119,6 +126,12 @@ fun PlayerScreen(
         },
         animationSpec = tween(if (isSeeking) 0 else 250),
         label = "slider"
+    )
+
+    val animatedtranslation by animateFloatAsState(
+        targetValue = (-20f * progress),
+        animationSpec = tween(250),
+        label = "translation"
     )
 
     BottomModal(
@@ -211,7 +224,9 @@ fun PlayerScreen(
                                 shape = RoundedCornerShape(artworkCornerRadius),
                                 clip = false
                             )
-                            .clip(RoundedCornerShape(artworkCornerRadius)),
+                            .clip(RoundedCornerShape(artworkCornerRadius))
+                            .background(colors.surface)
+                            .shimmerEffect(!uiState.isBuffering && !uiState.isFetchingMetadata && uiState.currentTrack == null),
                         contentAlignment = Alignment.Center
                     ) {
                         AsyncImage(
@@ -220,12 +235,6 @@ fun PlayerScreen(
                             modifier = Modifier.fillMaxSize(),
                             contentScale = ContentScale.Crop
                         )
-                        if (uiState.isBuffering || uiState.isFetchingMetadata) {
-                            CircularProgressIndicator(
-                                color = colors.primary,
-                                modifier = Modifier.size(48.dp)
-                            )
-                        }
                     }
 
                     Spacer(modifier = Modifier.weight(0.4f))
@@ -409,7 +418,7 @@ fun PlayerScreen(
                         .align(Alignment.TopCenter)
                         .graphicsLayer {
                             alpha = miniPlayerAlpha
-                            translationY = (-20f * progress)
+                            translationY = animatedtranslation
                         }
                 ) {
                     MiniPlayer(
@@ -608,7 +617,7 @@ fun QueueTab(
             Spacer(Modifier.height(8.dp))
         }
 
-        itemsIndexed(uiState.queue, key = { _, item -> item.mediaId + item.hashCode() }) { index, item ->
+        itemsIndexed(uiState.upNext, key = { _, item -> item.mediaId + item.hashCode() }) { index, item ->
             ReorderableItem(state, key = item.mediaId + item.hashCode()) { isDragging ->
                 val isCurrent = uiState.currentTrack?.mediaId == item.mediaId
 
@@ -646,7 +655,9 @@ fun QueueTab(
                             contentDescription = null,
                             modifier = Modifier
                                 .size(48.dp)
-                                .clip(RoundedCornerShape(8.dp)),
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(colors.surface)
+                                .shimmerEffect(true),
                             contentScale = ContentScale.Crop
                         )
                         Spacer(modifier = Modifier.width(12.dp))
@@ -727,7 +738,9 @@ fun RelatedTab(related: List<MediaItem>) {
                     contentDescription = null,
                     modifier = Modifier
                         .size(56.dp)
-                        .clip(RoundedCornerShape(8.dp)),
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(colors.surface)
+                        .shimmerEffect(true),
                     contentScale = ContentScale.Crop
                 )
                 Spacer(modifier = Modifier.width(16.dp))
@@ -750,4 +763,33 @@ fun RelatedTab(related: List<MediaItem>) {
             }
         }
     }
+}
+
+fun Modifier.shimmerEffect(enabled: Boolean = true): Modifier = composed {
+    if (!enabled) return@composed this
+    
+    val transition = rememberInfiniteTransition(label = "shimmer")
+    val translateAnim by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1000f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1200, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "shimmerTranslate"
+    )
+
+    val shimmerColors = listOf(
+        VynceTheme.colors.surface.copy(alpha = 0.6f),
+        VynceTheme.colors.surface.copy(alpha = 0.2f),
+        VynceTheme.colors.surface.copy(alpha = 0.6f),
+    )
+
+    val brush = Brush.linearGradient(
+        colors = shimmerColors,
+        start = Offset.Zero,
+        end = Offset(x = translateAnim, y = translateAnim)
+    )
+
+    background(brush)
 }

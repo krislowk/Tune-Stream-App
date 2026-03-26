@@ -8,7 +8,7 @@ val LimeGreen = Color(0xFFC6FF00)
 val ElectricPurple = Color(0xFFBB86FC)
 val CyanAccent = Color(0xFF03DAC6)
 val DeepSpace = Color(0xFF0A0A0B)
-val SurfaceDark = Color(0x00000000)
+val SurfaceDark = Color(0xFF121214)
 val SurfaceMedium = Color(0xFF1E1E22)
 val SurfaceLight = Color(0xFF2C2C32)
 

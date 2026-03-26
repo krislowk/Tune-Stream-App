@@ -3,7 +3,7 @@
 
     <style name="Theme.Vynce" parent="android:Theme.Material.Light.NoActionBar">
     <item name="android:windowSplashScreenBackground">@color/black</item>
-    <item name="android:windowSplashScreenAnimatedIcon">@drawable/icon</item>
+    <item name="android:windowSplashScreenAnimatedIcon">@drawable/icon_vynce</item>
 
     </style>
 </resources>
