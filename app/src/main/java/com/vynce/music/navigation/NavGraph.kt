@@ -35,8 +35,7 @@ fun NavGraph(
                         "playlist" -> id?.let { navController.navigate(PlaylistRoute(it)) }
                         "artist" -> id?.let { navController.navigate(ArtistRoute(it)) }
                     }
-                },
-                onSettingsClick = { navController.navigate(SettingsRoute) }
+                }
             )
         }
         composable<SearchRoute> {

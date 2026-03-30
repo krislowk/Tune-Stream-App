@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -52,13 +53,16 @@ fun QuickPicksCarousel(
     Column {
         SectionHeader(title, onPlayAllClick = onPlayAllClick)
         
-        val chunkedItems = items.chunked(4)
+        val chunkedItems = remember(items) { items.chunked(4) }
         
         LazyRow(
             contentPadding = PaddingValues(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            items(chunkedItems) { columnItems ->
+            items(
+                items = chunkedItems,
+                key = { it.firstOrNull()?.id ?: it.hashCode() }
+            ) { columnItems ->
                 Column(
                     modifier = Modifier.width(300.dp)
                 ) {
@@ -90,12 +94,18 @@ fun CarouselList(
             contentPadding = PaddingValues(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            items(items) { item ->
-                val subtitle = when (item) {
-                    is SongItem -> item.artists.joinToString { it.name }
-                    is AlbumItem -> item.artists?.joinToString { it.name } ?: ""
-                    is PlaylistItem -> item.author?.name ?: ""
-                    is ArtistItem -> "Artist"
+            items(
+                items = items,
+                key = { it.id }
+            ) { item ->
+                val subtitle = remember(item) {
+                    when (item) {
+                        is SongItem -> item.artists.joinToString { it.name }
+                        is AlbumItem -> item.artists?.joinToString { it.name } ?: ""
+                        is PlaylistItem -> item.author?.name ?: ""
+                        is ArtistItem -> "Artist"
+                        else -> ""
+                    }
                 }
                 MediaItemCard(
                     title = item.title,

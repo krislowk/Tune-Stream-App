@@ -36,8 +36,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
@@ -49,6 +49,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.vynce.music.ui.commponents.CarouselList
 import com.vynce.music.ui.commponents.QuickPicksCarousel
 import com.vynce.music.ui.screens.player.PlayerViewModel
@@ -63,12 +64,10 @@ import com.vynce.vynceclient.models.SongItem
 fun HomeScreen(
     playerViewModel: PlayerViewModel,
     onItemClick: (String, String?) -> Unit,
-    onSettingsClick: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val refreshing = viewModel.refreshing
-    val user by viewModel.currentUser.collectAsState()
 
     PullToRefreshBox(
         isRefreshing = refreshing,
@@ -98,7 +97,10 @@ fun HomeScreen(
                                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                                     modifier = Modifier.padding(bottom = 16.dp)
                                 ) {
-                                    items(state.data.filters) { filter ->
+                                    items(
+                                        items = state.data.filters,
+                                        key = { it.title }
+                                    ) { filter ->
                                         FilterChip(
                                             selected = filter.isSelected,
                                             onClick = { viewModel.onFilterSelected(filter) },
@@ -119,7 +121,7 @@ fun HomeScreen(
 
                         items(
                             items = state.data.sections,
-                            key = { it.title + it.items.size }
+                            key = { it.title }
                         ) { section ->
                             val isQuickPick = section.title.contains("quick", ignoreCase = true) ||
                                     section.title.contains("trending", ignoreCase = true)
@@ -129,7 +131,7 @@ fun HomeScreen(
                                     title = section.title,
                                     items = section.items,
                                     onItemClick = { item ->
-                                        handleItemClick(item, onItemClick, playerViewModel, section.items)
+                                        handleItemClick(item, onItemClick, playerViewModel)
                                     },
                                     onPlayAllClick = {
                                         val songs = section.items.filterIsInstance<SongItem>()
@@ -143,7 +145,7 @@ fun HomeScreen(
                                     title = section.title,
                                     items = section.items,
                                     onItemClick = { item ->
-                                        handleItemClick(item, onItemClick, playerViewModel, section.items)
+                                        handleItemClick(item, onItemClick, playerViewModel)
                                     },
                                     onPlayAllClick = {
                                         val songs = section.items.filterIsInstance<SongItem>()
@@ -164,8 +166,7 @@ fun HomeScreen(
 private fun handleItemClick(
     item: Any,
     onItemClick: (String, String?) -> Unit,
-    playerViewModel: PlayerViewModel,
-    sectionItems: List<Any>
+    playerViewModel: PlayerViewModel
 ) {
     when (item) {
         is SongItem -> playerViewModel.play(item.toMediaItem())
@@ -185,8 +186,8 @@ fun HomeTopBar() {
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(modifier = Modifier.weight(1f)) {
-            val greeting = getGreeting()
+        Column(modifier = Modifier.weight(0.5f)) {
+            val greeting =  remember { getGreeting() }
             Text(
                 text = greeting,
                 style = VynceTheme.typography.title.copy(

@@ -12,7 +12,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -45,13 +44,7 @@ class LibraryViewModel @Inject constructor(
         val songsFlow = when (tab) {
             0 -> songRepository.getAllSongs()
             1 -> songRepository.getLikedSongs()
-            else -> songRepository.getHistory().flatMapLatest { history ->
-                if (history.isEmpty()) flowOf(emptyList())
-                else songRepository.getSongsByUris(history.map { it.videoId }).map { songs ->
-                    val songMap = songs.associateBy { it.contentUri }
-                    history.mapNotNull { h -> songMap[h.videoId] }
-                }
-            }
+            else -> songRepository.getRecentlyPlayed(50)
         }
         
         songsFlow.map { songs ->

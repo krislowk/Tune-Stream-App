@@ -490,7 +490,7 @@ fun TabbedQueueContent(
                     color = colors.primary
                 )
                 
-                val nextTrack = uiState.upNext.firstOrNull()
+                val nextTrack = uiState.queue.firstOrNull()
                 
                 if (nextTrack != null) {
                     Text(
@@ -617,7 +617,7 @@ fun QueueTab(
             Spacer(Modifier.height(8.dp))
         }
 
-        itemsIndexed(uiState.upNext, key = { _, item -> item.mediaId + item.hashCode() }) { index, item ->
+        itemsIndexed(uiState.queue, key = { _, item -> item.mediaId + item.hashCode() }) { index, item ->
             ReorderableItem(state, key = item.mediaId + item.hashCode()) { isDragging ->
                 val isCurrent = uiState.currentTrack?.mediaId == item.mediaId
 

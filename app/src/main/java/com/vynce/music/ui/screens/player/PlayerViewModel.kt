@@ -40,7 +40,6 @@ data class PlayerUiState(
     val repeatMode: Int = Player.REPEAT_MODE_OFF,
     val shuffleEnabled: Boolean = false,
     val queue: List<MediaItem> = emptyList(),
-    val upNext: List<MediaItem> = emptyList(),
     val relatedSongs: List<MediaItem> = emptyList(),
     val isFetchingMetadata: Boolean = false,
     val isLiked: Boolean = false,
@@ -58,7 +57,7 @@ class PlayerViewModel @Inject constructor(
         val token = SessionToken(application, ComponentName(application, PlayerService::class.java))
         MediaController.Builder(application, token).buildAsync()
     }
-
+    private val upNextBuffer = ArrayDeque<MediaItem>()
     private val _uiState = MutableStateFlow(PlayerUiState())
     val uiState = _uiState.asStateFlow()
 
@@ -75,122 +74,62 @@ class PlayerViewModel @Inject constructor(
 
     private fun setupController() {
         controllerFuture.addListener({
-            controller = controllerFuture.get().apply {
-                addListener(playerListener)
-                syncState()
+            try {
+                controller = controllerFuture.get().apply {
+                    addListener(playerListener)
+                    syncState()
+                }
+            } catch (e: Exception) {
+                FirebaseCrashlytics.getInstance().recordException(e)
             }
         }, MoreExecutors.directExecutor())
     }
 
     private val playerListener = object : Player.Listener {
-        override fun onPlaybackStateChanged(playbackState: Int) {
-            syncState()
-        }
+        override fun onEvents(player: Player, events: Player.Events) {
+            if (events.containsAny(
+                    Player.EVENT_PLAYBACK_STATE_CHANGED,
+                    Player.EVENT_IS_PLAYING_CHANGED,
+                    Player.EVENT_MEDIA_ITEM_TRANSITION,
+                    Player.EVENT_REPEAT_MODE_CHANGED,
+                    Player.EVENT_SHUFFLE_MODE_ENABLED_CHANGED,
+                    Player.EVENT_TIMELINE_CHANGED
+                )
+            ) {
+                syncState()
+            }
 
-        override fun onIsPlayingChanged(isPlaying: Boolean) {
-            syncState()
-        }
-
-        override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
-            syncState()
-            mediaItem?.let { item ->
-                fetchMetadata(item.mediaId)
-                saveToHistory(item)
+            if (events.contains(Player.EVENT_MEDIA_ITEM_TRANSITION)) {
+                player.currentMediaItem?.let { item ->
+                    fetchMetadata(item.mediaId)
+                    saveToHistory(item)
+                }
             }
         }
-
-        override fun onRepeatModeChanged(repeatMode: Int) {
-            syncState()
-        }
-
-        override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
-            syncState()
-        }
-
-        override fun onPositionDiscontinuity(
-            oldPosition: Player.PositionInfo,
-            newPosition: Player.PositionInfo,
-            reason: Int
-        ) {
-            syncState()
-        }
-
-        override fun onTimelineChanged(timeline: androidx.media3.common.Timeline, reason: Int) {
-            syncState()
-        }
-    }
-
-    private fun updateLikedState(videoId: String) = viewModelScope.launch {
-        _uiState.update { it.copy(isLiked = songRepository.isLiked(videoId)) }
-    }
-
-    fun toggleLike() = viewModelScope.launch {
-        val currentTrack = _uiState.value.currentTrack ?: return@launch
-        val song = Song(
-            title = currentTrack.mediaMetadata.title?.toString() ?: "Unknown",
-            artist = currentTrack.mediaMetadata.artist?.toString() ?: "Unknown",
-            album = currentTrack.mediaMetadata.albumTitle?.toString(),
-            duration = 0,
-            contentUri = currentTrack.mediaId,
-            thumbnail = currentTrack.mediaMetadata.artworkUri?.toString() ?: "",
-            isYoutube = true
-        )
-        songRepository.toggleLike(song)
-        _uiState.update { it.copy(isLiked = !it.isLiked) }
-    }
-
-    fun toggleAutoplay() {
-        _uiState.update { it.copy(isAutoplayEnabled = !it.isAutoplayEnabled) }
-        if (_uiState.value.isAutoplayEnabled) {
-            _uiState.value.currentTrack?.let { 
-                lastFetchedVideoId = null
-                fetchMetadata(it.mediaId)
-            }
-        }
-    }
-
-    private fun saveToHistory(mediaItem: MediaItem) = viewModelScope.launch {
-        val song = Song(
-            title = mediaItem.mediaMetadata.title?.toString() ?: "Unknown",
-            artist = mediaItem.mediaMetadata.artist?.toString() ?: "Unknown",
-            album = mediaItem.mediaMetadata.albumTitle?.toString(),
-            duration = 0, // Should get from player if possible
-            contentUri = mediaItem.mediaId,
-            thumbnail = mediaItem.mediaMetadata.artworkUri?.toString() ?: ""
-        )
-        songRepository.markAsPlayed(song)
     }
 
     private fun syncState() {
         controller?.let { p ->
             val currentItem = p.currentMediaItem
             _uiState.update { state ->
-                // Broadening the buffering check:
-                // 1. Explicitly in STATE_BUFFERING
-                // 2. Ready and wanting to play, but not actually playing yet (likely network stall/rebuffer)
-                val isBuffering = p.playbackState == Player.STATE_BUFFERING || 
-                                (p.playbackState == Player.STATE_READY && p.playWhenReady && !p.isPlaying)
-
                 state.copy(
                     currentTrack = currentItem,
                     isPlaying = p.isPlaying,
                     duration = if (p.duration != C.TIME_UNSET) p.duration else 0L,
-                    isBuffering = isBuffering,
+                    isBuffering = p.playbackState == Player.STATE_BUFFERING,
                     repeatMode = p.repeatMode,
                     shuffleEnabled = p.shuffleModeEnabled,
                     queue = List(p.mediaItemCount) { p.getMediaItemAt(it) }
                 )
             }
-            if (currentItem != null) {
-                updateLikedState(currentItem.mediaId)
-            }
+            currentItem?.let { updateLikedState(it.mediaId) }
         }
     }
 
     private fun startPositionUpdates() = viewModelScope.launch {
         while (isActive) {
             controller?.let { p ->
-                if (_uiState.value.currentPosition != p.currentPosition) {
+                if (p.isPlaying && _uiState.value.currentPosition != p.currentPosition) {
                     _uiState.update { it.copy(currentPosition = p.currentPosition) }
                 }
             }
@@ -215,25 +154,42 @@ class PlayerViewModel @Inject constructor(
 
                 val allSongs = result.items.map { it.toMediaItem() }
                 val currentIndex = result.currentIndex ?: 0
-                val upNextSongs = if (currentIndex >= 0 && currentIndex < allSongs.size) {
+
+                val upNextSongs = if (currentIndex in allSongs.indices) {
                     allSongs.drop(currentIndex + 1)
                 } else {
                     allSongs
                 }
 
-                _uiState.update { it.copy(upNext = upNextSongs, isFetchingMetadata = false) }
+                upNextBuffer.clear()
+                upNextBuffer.addAll(upNextSongs)
 
                 controller?.let { p ->
-                    if (_uiState.value.isAutoplayEnabled && allSongs.isNotEmpty()) {
-                        val currentQueueIds = (0 until p.mediaItemCount).map { p.getMediaItemAt(it).mediaId }.toSet()
-                        val uniqueUpNext = allSongs.filter { it.mediaId !in currentQueueIds }
-                        
-                        if (uniqueUpNext.isNotEmpty()) {
-                            p.addMediaItems(uniqueUpNext)
+                    if (_uiState.value.isAutoplayEnabled && upNextBuffer.isNotEmpty()) {
+
+                        val remaining = p.mediaItemCount - p.currentMediaItemIndex - 1
+
+                        if (remaining <= 2) {
+                            val toAdd = mutableListOf<MediaItem>()
+
+                            while (upNextBuffer.isNotEmpty() && toAdd.size < 10) {
+                                val item = upNextBuffer.removeFirst()
+
+                                // prevent duplicates
+                                val exists = (0 until p.mediaItemCount)
+                                    .any { p.getMediaItemAt(it).mediaId == item.mediaId }
+
+                                if (!exists) {
+                                    toAdd.add(item)
+                                }
+                            }
+
+                            if (toAdd.isNotEmpty()) {
+                                p.addMediaItems(toAdd)
+                            }
                         }
                     }
                 }
-
                 launch { loadLyrics(result) }
                 launch { loadRelated(result) }
 
@@ -268,14 +224,15 @@ class PlayerViewModel @Inject constructor(
     /* ---------------- Player Controls ---------------- */
 
     fun play(mediaItem: MediaItem) = runPlayer {
-        lastFetchedVideoId = null // Allow re-fetching metadata for manual play
+        lastFetchedVideoId = null
+        stop()
         setMediaItems(listOf(mediaItem), 0, C.TIME_UNSET)
         prepare()
         play()
     }
 
     fun playAll(items: List<MediaItem>, startIndex: Int = 0) = runPlayer {
-        lastFetchedVideoId = null // Allow re-fetching metadata for manual play
+        lastFetchedVideoId = null
         setMediaItems(items, startIndex, C.TIME_UNSET)
         prepare()
         play()
@@ -291,10 +248,9 @@ class PlayerViewModel @Inject constructor(
         if (hasNextMediaItem()) {
             seekToNext()
         } else if (_uiState.value.isAutoplayEnabled) {
-            // Force fetch if we're at the end and autoplay is on
-            _uiState.value.currentTrack?.let { 
+            _uiState.value.currentTrack?.let {
                 lastFetchedVideoId = null
-                fetchMetadata(it.mediaId) 
+                fetchMetadata(it.mediaId)
             }
         }
     }
@@ -324,15 +280,53 @@ class PlayerViewModel @Inject constructor(
         }
     }
 
+    fun toggleAutoplay() {
+        _uiState.update { it.copy(isAutoplayEnabled = !it.isAutoplayEnabled) }
+        runPlayer{ playWhenReady = true }
+    }
+
     fun setSpeed(speed: Float) = runPlayer { setPlaybackSpeed(speed) }
 
-    /* ---------------- Helper ---------------- */
+    /* ---------------- Repository Actions ---------------- */
+
+    private fun updateLikedState(videoId: String) = viewModelScope.launch {
+        _uiState.update { it.copy(isLiked = songRepository.isLiked(videoId)) }
+    }
+
+    fun toggleLike() = viewModelScope.launch {
+        val currentTrack = _uiState.value.currentTrack ?: return@launch
+        val song = Song(
+            mediaId = currentTrack.mediaId,
+            title = currentTrack.mediaMetadata.title?.toString() ?: "Unknown",
+            artist = currentTrack.mediaMetadata.artist?.toString() ?: "Unknown",
+            album = currentTrack.mediaMetadata.albumTitle?.toString(),
+            duration = 0,
+            thumbnail = currentTrack.mediaMetadata.artworkUri?.toString() ?: "",
+            isYoutube = true
+        )
+        songRepository.toggleLike(song)
+        _uiState.update { it.copy(isLiked = !it.isLiked) }
+    }
+
+
+    private fun saveToHistory(mediaItem: MediaItem) = viewModelScope.launch {
+        val song = Song(
+            mediaId = mediaItem.mediaId,
+            title = mediaItem.mediaMetadata.title?.toString() ?: "Unknown",
+            artist = mediaItem.mediaMetadata.artist?.toString() ?: "Unknown",
+            album = mediaItem.mediaMetadata.albumTitle?.toString(),
+            duration = 0,
+            thumbnail = mediaItem.mediaMetadata.artworkUri?.toString() ?: "",
+            isYoutube = true
+        )
+        songRepository.markAsPlayed(song)
+    }
+
+    /* ---------------- Helpers ---------------- */
 
     private fun runPlayer(block: MediaController.() -> Unit) {
         controller?.apply(block)
     }
-
-    /* ---------------- Cleanup ---------------- */
 
     override fun onCleared() {
         MediaController.releaseFuture(controllerFuture)

@@ -32,7 +32,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.AndroidUiModes.UI_MODE_NIGHT_YES
@@ -70,8 +69,7 @@ fun BottomModal(
     content: @Composable (PaddingValues) -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val density = LocalDensity.current
-    val screenHeightPx = with(density) { LocalWindowInfo.current.containerSize.height.dp.toPx() }
+    val screenHeightPx = LocalWindowInfo.current.containerSize.height.toFloat()
     val navBarPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
 
     // Calculate progress from Modal's offset
@@ -100,7 +98,7 @@ fun BottomModal(
                     .fillMaxWidth()
                     .height(peekHeight + navBarPadding)
                     .pointerInput(Unit) {
-                        detectVerticalDragGestures { change, dragAmount ->
+                        detectVerticalDragGestures { _, dragAmount ->
                             if (dragAmount < -10) { // Significant drag up
                                 onExpandChange(true)
                             }
@@ -120,15 +118,12 @@ fun BottomModal(
                 onDismissRequest = { onExpandChange(false) },
                 sheetState = sheetState,
                 dragHandle = null,
-                containerColor = Color.Transparent, // Let the content define the container (Surface, Shape, etc.)
+                containerColor = VynceTheme.colors.surface,
                 scrimColor = Color.Black.copy(alpha = 0.5f),
                 shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
                 contentWindowInsets = { WindowInsets(0) }
             ) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.BottomCenter // Ensures the sheet content aligns to the bottom
-                ) {
+                Box(modifier = Modifier.fillMaxSize()) {
                     sheetContent(modalProgress)
                 }
             }

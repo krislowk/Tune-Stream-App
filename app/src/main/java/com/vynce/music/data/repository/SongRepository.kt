@@ -5,9 +5,11 @@ import com.vynce.music.data.local.SongDao
 import com.vynce.music.data.local.StreamCacheDao
 import com.vynce.music.data.model.History
 import com.vynce.music.data.model.Song
+import com.vynce.music.data.model.SongItem
 import com.vynce.music.data.model.StreamCache
 import com.vynce.music.provider.YoutubeProvider
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -19,32 +21,49 @@ class SongRepository @Inject constructor(
     private val streamCacheDao: StreamCacheDao,
     private val youtubeProvider: YoutubeProvider
 ) {
+    // --- Optimized History ---
     fun getHistory(): Flow<List<History>> = historyDao.getHistory()
+        .distinctUntilChanged()
 
-    fun getAllSongs(): Flow<List<Song>> = songDao.getAllSongs()
+    // --- Optimized Song Queries ---
+    // Returns full entities for detail screens
+    fun getAllSongs(): Flow<List<Song>> = songDao.getAllSongsFlow()
+        .distinctUntilChanged()
 
-    fun getSongsByUris(uris: List<String>): Flow<List<Song>> = songDao.getSongsByUris(uris)
+    // Returns lightweight items for list screens (minimizes recomposition and memory)
+    fun getAllSongItems(): Flow<List<SongItem>> = songDao.getAllSongItemsFlow()
+        .distinctUntilChanged()
 
-    fun getLikedSongs(): Flow<List<Song>> = songDao.getLikedSongs()
+    fun getLikedSongs(): Flow<List<Song>> = songDao.getLikedSongsFlow()
+        .distinctUntilChanged()
+
+    fun getSongsByMediaIds(mediaIds: List<String>): Flow<List<Song>> = songDao.getSongsByMediaIds(mediaIds)
+        .distinctUntilChanged()
+
+    suspend fun getSongByMediaId(mediaId: String): Song? = songDao.getSongByMediaId(mediaId)
 
     suspend fun toggleLike(song: Song) {
-        val current = songDao.getSongByUri(song.contentUri)
+        val current = songDao.getSongByMediaId(song.mediaId)
         if (current != null) {
-            songDao.insertSong(current.copy(isLiked = !current.isLiked))
+            songDao.toggleLike(song.mediaId)
         } else {
-            songDao.insertSong(song.copy(isLiked = true))
+            songDao.insert(song.copy(isLiked = true))
         }
     }
 
-    suspend fun isLiked(contentUri: String): Boolean {
-        return songDao.getSongByUri(contentUri)?.isLiked ?: false
+    suspend fun isLiked(mediaId: String): Boolean {
+        return songDao.getSongByMediaId(mediaId)?.isLiked ?: false
     }
 
     suspend fun markAsPlayed(song: Song) {
-        songDao.insertSong(song)
-        historyDao.insertHistory(History(videoId = song.contentUri))
+        songDao.insert(song)
+        historyDao.insertHistory(History(mediaId = song.mediaId))
     }
 
+    fun getRecentlyPlayed(limit: Int = 10): Flow<List<Song>> = historyDao.getRecentlyPlayedSongs(limit)
+        .distinctUntilChanged()
+
+    // --- Cache Management ---
     suspend fun getStream(videoId: String): String? {
         val cached = streamCacheDao.getStream(videoId)
         val now = System.currentTimeMillis()
@@ -59,7 +78,7 @@ class SongRepository @Inject constructor(
                 StreamCache(
                     videoId = videoId,
                     url = url,
-                    bitrate = 0, // Should be populated if available
+                    bitrate = 0,
                     mimeType = ""
                 )
             )

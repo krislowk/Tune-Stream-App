@@ -15,6 +15,8 @@
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <application
         android:name=".VynceApplication"
@@ -53,6 +55,8 @@
                 <data android:host="m.youtube.com" />
                 <data android:host="www.youtube.com" />
                 <data android:host="music.youtube.com" />
+                <data android:scheme="vnd.youtube" />
+                <data android:scheme="vnd.youtube.launch" />
                 <!-- video prefix -->
                 <data android:pathPrefix="/v/" />
                 <data android:pathPrefix="/embed/" />
@@ -64,21 +68,16 @@
                 <!-- playlist prefix -->
                 <data android:pathPrefix="/playlist" />
             </intent-filter>
-
-            <intent-filter android:autoVerify="true">
-                <action android:name="android.intent.action.VIEW" />
-                <action android:name="android.media.action.MEDIA_PLAY_FROM_SEARCH" />
-                <action android:name="android.nfc.action.NDEF_DISCOVERED" />
-
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-
-                <data android:scheme="http" />
-                <data android:scheme="https" />
-                <data android:host="youtu.be" />
-                <data android:pathPrefix="/" />
-            </intent-filter>
         </activity>
+
+        <receiver
+            android:name="androidx.media3.session.MediaButtonReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MEDIA_BUTTON" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </receiver>
 
         <!-- 3. Efficient Service Configuration -->
         <service
@@ -91,6 +90,7 @@
                 <action android:name="androidx.media3.session.MediaSessionService" />
                 <!-- Optional: Allows Bluetooth/External buttons to wake the service -->
                 <action android:name="android.intent.action.MEDIA_BUTTON" />
+                <action android:name="androidx.media3.session.MediaLibraryService" />
             </intent-filter>
         </service>
 

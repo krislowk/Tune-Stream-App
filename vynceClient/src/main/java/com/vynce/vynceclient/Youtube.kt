@@ -340,7 +340,7 @@ object Youtube {
         val sectionListRenderer = response.contents?.singleColumnBrowseResultsRenderer?.tabs?.firstOrNull()
             ?.tabRenderer?.content?.sectionListRenderer
 
-        var continuation = sectionListRenderer?.continuations?.getContinuation()
+        val continuation = sectionListRenderer?.continuations?.getContinuation()
 
         val filters = sectionListRenderer?.header?.chipCloudRenderer?.chips?.mapNotNull { chip ->
             chip.chipCloudChipRenderer.let { renderer ->
@@ -358,9 +358,8 @@ object Youtube {
                 HomePage.Section.fromMusicCarouselShelfRenderer(it)
             }.toMutableList()
 
-        while (continuation != null) {
+        if (continuation != null) {
             response = innerTube.browse(WEB_REMIX, continuation = continuation, setLogin = useLoginForBrowse)
-            continuation = response.continuationContents?.sectionListContinuation?.continuations?.getContinuation()
             sections += response.continuationContents?.sectionListContinuation?.contents
                 ?.mapNotNull { it.musicCarouselShelfRenderer }
                 ?.mapNotNull {

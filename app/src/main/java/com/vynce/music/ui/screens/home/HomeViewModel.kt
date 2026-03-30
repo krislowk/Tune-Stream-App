@@ -6,7 +6,9 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.crashlytics.FirebaseCrashlytics
+import com.vynce.music.data.model.Song
 import com.vynce.music.data.model.User
+import com.vynce.music.data.repository.SongRepository
 import com.vynce.music.data.repository.UserRepository
 import com.vynce.vynceclient.Youtube
 import com.vynce.vynceclient.pages.HomePage
@@ -21,13 +23,17 @@ import javax.inject.Inject
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
-    userRepository: UserRepository
+    userRepository: UserRepository,
+    private val songRepository: SongRepository
 ) : ViewModel() {
     private val _uiState = MutableStateFlow<HomeUiState>(HomeUiState.Loading)
     val uiState = _uiState.asStateFlow()
 
     val currentUser: StateFlow<User?> = userRepository.currentUser
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    val recentlyPlayed: StateFlow<List<Song>> = songRepository.getRecentlyPlayed(20)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     var refreshing by mutableStateOf(false)
         private set

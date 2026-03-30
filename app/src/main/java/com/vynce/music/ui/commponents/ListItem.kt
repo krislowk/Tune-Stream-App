@@ -17,6 +17,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -72,17 +73,19 @@ fun ListItem(
                 color = VynceTheme.colors.textPrimary,
                 maxLines = 1
             )
-            val subtitle = when (item) {
-                is SongItem -> item.artists.joinToString { it.name }
-                is AlbumItem -> item.artists?.joinToString { it.name } ?: ""
-                is PlaylistItem -> item.author?.name ?: ""
-                is ArtistItem -> "Artist"
+            val subtitle = remember(item) {
+                when (item) {
+                    is SongItem -> item.artists.joinToString { it.name }
+                    is AlbumItem -> item.artists?.joinToString { it.name } ?: ""
+                    is PlaylistItem -> item.author?.name ?: ""
+                    is ArtistItem -> "Artist"
+                }
             }
             Text(
                 text = subtitle,
                 style = VynceTheme.typography.label.copy(fontSize = 10.sp),
                 color = VynceTheme.colors.textSecondary,
-                maxLines = 10
+                maxLines = 1
             )
         }
 

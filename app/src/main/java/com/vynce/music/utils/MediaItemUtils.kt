@@ -27,7 +27,7 @@ fun SongItem.toMediaItem(): MediaItem {
 
 fun Song.toMediaItem(): MediaItem {
     return MediaItem.Builder()
-        .setMediaId(contentUri)
+        .setMediaId(mediaId)
         .setMediaMetadata(
             MediaMetadata.Builder()
                 .setTitle(title)

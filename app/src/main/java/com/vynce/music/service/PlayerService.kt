@@ -22,7 +22,7 @@ class PlayerService : MediaSessionService() {
 
     private var mediaSession: MediaSession? = null
     private lateinit var player: ExoPlayer
-    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private inner class PlayerListener : Player.Listener {
         override fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -38,50 +38,29 @@ class PlayerService : MediaSessionService() {
         ): ListenableFuture<MutableList<MediaItem>> {
 
             return serviceScope.future {
-                if (mediaItems.isEmpty()) return@future mediaItems
-
-                // Resolve the first item IMMEDIATELY so playback starts fast
-                val firstItem = mediaItems[0]
-                val firstResolved = if (firstItem.localConfiguration?.uri == null || firstItem.localConfiguration?.uri.toString().isEmpty()) {
-                    try {
-                        val streamUrl = YtStream.getVideoStream(firstItem.mediaId)
-                        if (streamUrl != null) {
-                            firstItem.buildUpon().setUri(streamUrl).build()
-                        } else firstItem
-                    } catch (e: Exception) {
-                        FirebaseCrashlytics.getInstance().recordException(e)
-                        firstItem
-                    }
-                } else firstItem
-
-                val resultList = mutableListOf(firstResolved)
-
-                // Resolve remaining items in parallel if any
-                if (mediaItems.size > 1) {
-                    val remainingItems = mediaItems.drop(1)
-                    val resolvedRemaining = remainingItems.map { item ->
-                        async(Dispatchers.IO) {
-                            if (item.localConfiguration?.uri == null || item.localConfiguration?.uri.toString().isEmpty()) {
-                                try {
-                                    val streamUrl = YtStream.getVideoStream(item.mediaId)
-                                    if (streamUrl != null) {
-                                        item.buildUpon().setUri(streamUrl).build()
-                                    } else item
-                                } catch (e: Exception) {
-                                    FirebaseCrashlytics.getInstance().recordException(e)
-                                    item
-                                }
-                            } else item
+                mediaItems.map { item ->
+                    async {
+                        if (item.localConfiguration?.uri == null) {
+                            try {
+                                val streamUrl = YtStream.getVideoStream(item.mediaId)
+                                if (streamUrl != null) {
+                                    item.buildUpon()
+                                        .setUri(streamUrl)
+                                        .build()
+                                } else item
+                            } catch (e: Exception) {
+                                FirebaseCrashlytics.getInstance().recordException(e)
+                                item
+                            }
+                        } else {
+                            item
                         }
-                    }.awaitAll()
-                    resultList.addAll(resolvedRemaining)
+                    }
                 }
-                
-                resultList
+                .awaitAll().toMutableList()
             }
         }
     }
-
     override fun onCreate() {
         super.onCreate()
 

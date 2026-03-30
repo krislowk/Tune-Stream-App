@@ -30,8 +30,6 @@ import io.ktor.client.plugins.cache.HttpCache
 import io.ktor.client.plugins.compression.ContentEncoding
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.defaultRequest
-import io.ktor.client.plugins.logging.LogLevel
-import io.ktor.client.plugins.logging.Logging
 import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.get
 import io.ktor.client.request.headers
@@ -39,19 +37,20 @@ import io.ktor.client.request.parameter
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
-import io.ktor.encoding.zstd.ZstdEncoder
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import io.ktor.http.userAgent
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
+import okhttp3.ConnectionPool
 import java.net.Proxy
 import java.util.Collections
 import java.util.Locale
+import java.util.concurrent.TimeUnit
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
 
-class Innertube() : ApiProvider {
+class Innertube : ApiProvider {
 
     override var locale = YtLocale(
         gl = Locale.getDefault().country,
@@ -78,7 +77,7 @@ class Innertube() : ApiProvider {
         private val jsonConfig = Json {
             ignoreUnknownKeys = true
             explicitNulls = false
-            encodeDefaults = true
+            encodeDefaults = false
         }
 
         private val sharedClient by lazy {
@@ -90,7 +89,7 @@ class Innertube() : ApiProvider {
                 }
 
                 install(ContentEncoding) {
-                    customEncoder(ZstdEncoder())
+                    // customEncoder(ZstdEncoder()) // Temporarily disabled due to KTOR-9387 (truncation bug on Android 15)
                     gzip(0.9F)
                     deflate(0.8F)
                 }
@@ -103,13 +102,15 @@ class Innertube() : ApiProvider {
                 }
 
                 install(HttpTimeout) {
-                    requestTimeoutMillis = 60000
-                    connectTimeoutMillis = 30000
-                    socketTimeoutMillis = 45000
+                    requestTimeoutMillis = 15000
+                    connectTimeoutMillis = 10000
+                    socketTimeoutMillis = 15000
                 }
-
-                install(Logging) {
-                    level = LogLevel.INFO
+                engine {
+                    config {
+                        retryOnConnectionFailure(true)
+                        connectionPool(ConnectionPool(10, 5, TimeUnit.MINUTES))
+                    }
                 }
 
                 defaultRequest {
@@ -281,7 +282,7 @@ class Innertube() : ApiProvider {
         setBody(
             GetTranscriptBody(
                 context = client.toContext(locale, null),
-                params = Base64.Default.encode("\n${11.toChar()}$videoId".toByteArray())
+                params = Base64.encode("\n${11.toChar()}$videoId".toByteArray())
             )
         )
     }.body()
