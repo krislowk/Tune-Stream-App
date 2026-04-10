@@ -40,6 +40,7 @@ data class PlayerUiState(
     val repeatMode: Int = Player.REPEAT_MODE_OFF,
     val shuffleEnabled: Boolean = false,
     val queue: List<MediaItem> = emptyList(),
+    val currentIndex: Int = -1,
     val relatedSongs: List<MediaItem> = emptyList(),
     val isFetchingMetadata: Boolean = false,
     val isLiked: Boolean = false,
@@ -119,7 +120,8 @@ class PlayerViewModel @Inject constructor(
                     isBuffering = p.playbackState == Player.STATE_BUFFERING,
                     repeatMode = p.repeatMode,
                     shuffleEnabled = p.shuffleModeEnabled,
-                    queue = List(p.mediaItemCount) { p.getMediaItemAt(it) }
+                    queue = List(p.mediaItemCount) { p.getMediaItemAt(it) },
+                    currentIndex = p.currentMediaItemIndex
                 )
             }
             currentItem?.let { updateLikedState(it.mediaId) }
@@ -286,6 +288,19 @@ class PlayerViewModel @Inject constructor(
     }
 
     fun setSpeed(speed: Float) = runPlayer { setPlaybackSpeed(speed) }
+
+    fun playQueue(endpoint: WatchEndpoint) {
+        viewModelScope.launch {
+            Youtube.next(endpoint).onSuccess { result ->
+                val mediaItems = result.items.map { it.toMediaItem() }
+                if (mediaItems.isNotEmpty()) {
+                    playAll(mediaItems)
+                }
+            }.onFailure {
+                FirebaseCrashlytics.getInstance().recordException(it)
+            }
+        }
+    }
 
     /* ---------------- Repository Actions ---------------- */
 

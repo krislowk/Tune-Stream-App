@@ -1,5 +1,6 @@
 package com.vynce.music.ui.screens.artist
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -40,6 +41,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -97,13 +99,22 @@ fun ArtistScreen(
                     color = VynceTheme.colors.primary
                 )
             } else if (artist != null) {
+                val context = LocalContext.current
                 ArtistContent(
                     artist = artist!!,
                     onPlayClick = {
-                        // TODO: Implement shuffle/play from artist shuffle endpoint
+                        artist!!.artist.shuffleEndpoint?.let {
+                            playerViewModel.playQueue(it)
+                        } ?: run {
+                            Toast.makeText(context, "No songs to play", Toast.LENGTH_SHORT).show()
+                        }
                     },
                     onShuffleClick = {
-                        // TODO: Implement shuffle
+                        artist!!.artist.shuffleEndpoint?.let {
+                            playerViewModel.playQueue(it)
+                        } ?: run {
+                            Toast.makeText(context, "No songs to shuffle", Toast.LENGTH_SHORT).show()
+                        }
                     },
                     onItemClick = { item ->
                         when (item) {

@@ -11,11 +11,8 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,13 +21,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
@@ -45,12 +40,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -155,75 +147,9 @@ class MainActivity : ComponentActivity() {
                             }
                         }
                     }
-                    
-                    // Extended Splash Transition
-                    AnimatedVisibility(
-                        visible = !isReady,
-                        exit = fadeOut(tween(500)) + scaleOut(targetScale = 1.1f, animationSpec = tween(500))
-                    ) {
-                        SplashScreen()
-                    }
                 }
             }
         }
-    }
-}
-
-@Composable
-fun SplashScreen() {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(VynceTheme.colors.background),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Box(
-                modifier = Modifier
-                    .size(100.dp)
-                    .clip(CircleShape)
-                    .background(VynceTheme.colors.primary.copy(alpha = 0.1f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.MusicNote,
-                    contentDescription = null,
-                    modifier = Modifier.size(48.dp),
-                    tint = VynceTheme.colors.primary
-                )
-            }
-            
-            Spacer(modifier = Modifier.height(24.dp))
-            
-            Text(
-                text = "VYNCE",
-                style = VynceTheme.typography.title.copy(
-                    letterSpacing = 4.sp,
-                    fontWeight = FontWeight.Black,
-                    fontSize = 24.sp
-                ),
-                color = VynceTheme.colors.textPrimary
-            )
-            
-            Spacer(modifier = Modifier.height(8.dp))
-            
-            Text(
-                text = "Discover your rhythm",
-                style = VynceTheme.typography.body.copy(
-                    letterSpacing = 1.sp,
-                    color = VynceTheme.colors.textSecondary
-                )
-            )
-        }
-        
-        CircularProgressIndicator(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 64.dp)
-                .size(32.dp),
-            color = VynceTheme.colors.primary,
-            strokeWidth = 3.dp
-        )
     }
 }
 
@@ -293,7 +219,13 @@ fun VynceApp() {
                     viewModel = playerViewModel,
                     expansionProgress = { progress },
                     onClose = { isPlayerExpanded = false },
-                    onExpand = { isPlayerExpanded = true }
+                    onExpand = { isPlayerExpanded = true },
+                    onNavigateToArtist = { id ->
+                        navController.navigate(com.vynce.music.navigation.ArtistRoute(id))
+                    },
+                    onNavigateToAlbum = { id ->
+                        navController.navigate(com.vynce.music.navigation.AlbumRoute(id))
+                    }
                 )
             },
             modifier = Modifier.padding(
@@ -303,7 +235,7 @@ fun VynceApp() {
             NavGraph(
                 navController = navController,
                 playerViewModel = playerViewModel,
-                modifier = Modifier.padding(top = navPadding.calculateTopPadding())
+                modifier = Modifier.padding(top = navPadding.calculateTopPadding() - 30.dp)
             )
         }
     }

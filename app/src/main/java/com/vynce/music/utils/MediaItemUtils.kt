@@ -11,6 +11,7 @@ fun SongItem.toMediaItem(): MediaItem {
     val extras = Bundle().apply {
         putString("album_id", album?.id)
         putString("artist_id", artists.firstOrNull()?.id)
+        putString("share_link", shareLink)
     }
     return MediaItem.Builder()
         .setMediaId(id)

@@ -24,8 +24,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
+import coil.compose.SubcomposeAsyncImage
 import com.vynce.music.ui.theme.VynceTheme
+import com.vynce.music.utils.shimmerEffect
 import com.vynce.vynceclient.models.AlbumItem
 import com.vynce.vynceclient.models.ArtistItem
 import com.vynce.vynceclient.models.PlaylistItem
@@ -54,10 +55,13 @@ fun ListItem(
                 .background(VynceTheme.colors.textPrimary.copy(0.05f)),
             contentAlignment = Alignment.Center
         ) {
-            AsyncImage(
+            SubcomposeAsyncImage(
                 model = item.thumbnail,
                 contentDescription = null,
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier.fillMaxSize(),
+                loading = {
+                    Box(modifier = Modifier.fillMaxSize().shimmerEffect())
+                }
             )
         }
 

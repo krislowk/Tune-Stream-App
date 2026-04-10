@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vynce.music.data.model.Song
 import com.vynce.music.data.repository.SongRepository
+import com.vynce.music.data.repository.UserRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,8 +20,15 @@ import javax.inject.Inject
 
 @HiltViewModel
 class LibraryViewModel @Inject constructor(
-    private val songRepository: SongRepository
+    private val songRepository: SongRepository,
+    userRepository: UserRepository
 ) : ViewModel() {
+
+    val currentUser = userRepository.currentUser
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    val recentlyPlayed: StateFlow<List<Song>> = songRepository.getRecentlyPlayed(15)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     init {
         viewModelScope.launch {
@@ -42,9 +50,9 @@ class LibraryViewModel @Inject constructor(
         tab to query
     }.flatMapLatest { (tab, query) ->
         val songsFlow = when (tab) {
-            0 -> songRepository.getAllSongs()
-            1 -> songRepository.getLikedSongs()
-            else -> songRepository.getRecentlyPlayed(50)
+            0 -> songRepository.getLikedSongs() // Liked
+            2 -> songRepository.getAllSongs() // Songs
+            else -> songRepository.getAllSongs() // Playlists, Albums, Artists (Filtered in Screen)
         }
         
         songsFlow.map { songs ->
@@ -81,6 +89,12 @@ class LibraryViewModel @Inject constructor(
 
     fun onTabSelected(index: Int) {
         _selectedTab.value = index
+    }
+
+    fun toggleLike(song: Song) {
+        viewModelScope.launch {
+            songRepository.toggleLike(song)
+        }
     }
 }
 

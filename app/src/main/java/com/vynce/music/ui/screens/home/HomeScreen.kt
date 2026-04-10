@@ -1,11 +1,6 @@
 package com.vynce.music.ui.screens.home
 
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -40,10 +35,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -54,6 +46,7 @@ import com.vynce.music.ui.commponents.CarouselList
 import com.vynce.music.ui.commponents.QuickPicksCarousel
 import com.vynce.music.ui.screens.player.PlayerViewModel
 import com.vynce.music.ui.theme.VynceTheme
+import com.vynce.music.utils.shimmerEffect
 import com.vynce.music.utils.toMediaItem
 import com.vynce.vynceclient.models.AlbumItem
 import com.vynce.vynceclient.models.ArtistItem
@@ -106,12 +99,12 @@ fun HomeScreen(
                                             onClick = { viewModel.onFilterSelected(filter) },
                                             label = { Text(filter.title) },
                                             colors = FilterChipDefaults.filterChipColors(
-                                                selectedContainerColor = VynceTheme.colors.primary,
+                                                selectedContainerColor = VynceTheme.colors.onPrimary,
                                                 selectedLabelColor = VynceTheme.colors.onPrimary,
                                                 containerColor = VynceTheme.colors.surface,
                                                 labelColor = VynceTheme.colors.textSecondary
                                             ),
-                                            border = null,
+                                            border = if (filter.isSelected )BorderStroke(1.dp,VynceTheme.colors.primary) else null,
                                             shape = RoundedCornerShape(12.dp)
                                         )
                                     }
@@ -186,7 +179,7 @@ fun HomeTopBar() {
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(modifier = Modifier.weight(0.5f)) {
+        Column(modifier = Modifier.weight(1f)) {
             val greeting =  remember { getGreeting() }
             Text(
                 text = greeting,
@@ -271,33 +264,6 @@ fun ErrorState(
     }
 }
 
-fun Modifier.shimmerEffect(): Modifier = composed {
-    val transition = rememberInfiniteTransition(label = "shimmer")
-    val translateAnim by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1000f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1200, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "shimmerTranslate"
-    )
-
-    val shimmerColors = listOf(
-        VynceTheme.colors.surface.copy(alpha = 0.6f),
-        VynceTheme.colors.surface.copy(alpha = 0.2f),
-        VynceTheme.colors.surface.copy(alpha = 0.6f),
-    )
-
-    val brush = Brush.linearGradient(
-        colors = shimmerColors,
-        start = Offset.Zero,
-        end = Offset(x = translateAnim, y = translateAnim)
-    )
-
-    background(brush)
-}
-
 @Composable
 fun HomeSkeleton() {
     Column(
@@ -332,19 +298,57 @@ fun HomeSkeleton() {
             }
         }
 
-        // Carousels Skeleton
-        repeat(3) {
-            Column(modifier = Modifier.padding(vertical = 12.dp)) {
-                Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).size(120.dp, 24.dp).clip(RoundedCornerShape(8.dp)).shimmerEffect())
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    items(4) {
-                        Column {
-                            Box(modifier = Modifier.size(140.dp).clip(RoundedCornerShape(16.dp)).shimmerEffect())
-                            Spacer(Modifier.height(8.dp))
-                            Box(modifier = Modifier.size(100.dp, 16.dp).clip(RoundedCornerShape(4.dp)).shimmerEffect())
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(bottom = 88.dp),
+            userScrollEnabled = false
+        ) {
+            // Quick Picks Skeleton (Grid-like columns)
+            item {
+                Column(modifier = Modifier.padding(vertical = 12.dp)) {
+                    Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).size(120.dp, 24.dp).clip(RoundedCornerShape(8.dp)).shimmerEffect())
+                    LazyRow(
+                        contentPadding = PaddingValues(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        items(3) {
+                            Column(modifier = Modifier.width(300.dp)) {
+                                repeat(4) {
+                                    Row(
+                                        modifier = Modifier.padding(vertical = 8.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Box(modifier = Modifier.size(48.dp).clip(RoundedCornerShape(8.dp)).shimmerEffect())
+                                        Spacer(Modifier.width(16.dp))
+                                        Column {
+                                            Box(modifier = Modifier.size(150.dp, 14.dp).clip(RoundedCornerShape(4.dp)).shimmerEffect())
+                                            Spacer(Modifier.height(6.dp))
+                                            Box(modifier = Modifier.size(100.dp, 10.dp).clip(RoundedCornerShape(4.dp)).shimmerEffect())
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Standard Carousels Skeleton
+            items(3) {
+                Column(modifier = Modifier.padding(vertical = 12.dp)) {
+                    Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).size(120.dp, 24.dp).clip(RoundedCornerShape(8.dp)).shimmerEffect())
+                    LazyRow(
+                        contentPadding = PaddingValues(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        items(4) {
+                            Column {
+                                Box(modifier = Modifier.size(160.dp).clip(RoundedCornerShape(16.dp)).shimmerEffect())
+                                Spacer(Modifier.height(12.dp))
+                                Box(modifier = Modifier.size(120.dp, 14.dp).clip(RoundedCornerShape(4.dp)).shimmerEffect())
+                                Spacer(Modifier.height(6.dp))
+                                Box(modifier = Modifier.size(80.dp, 12.dp).clip(RoundedCornerShape(4.dp)).shimmerEffect())
+                            }
                         }
                     }
                 }

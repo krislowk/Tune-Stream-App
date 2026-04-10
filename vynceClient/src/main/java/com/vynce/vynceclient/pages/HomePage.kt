@@ -43,7 +43,7 @@ data class HomePage(
                     label = header.strapline?.runs?.firstOrNull()?.text,
                     thumbnail = header.thumbnail?.musicThumbnailRenderer?.getThumbnailUrl(),
                     endpoint = header.moreContentButton?.buttonRenderer?.navigationEndpoint?.browseEndpoint,
-                    items = renderer.contents.mapNotNull {
+                    items = renderer.contents.mapNotNull { it ->
                         it.musicTwoRowItemRenderer?.let { fromMusicTwoRowItemRenderer(it) }
                             ?: it.musicResponsiveListItemRenderer?.let { fromMusicResponsiveListItemRenderer(it) }
                     }.ifEmpty {

@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -29,13 +30,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
+import coil.compose.SubcomposeAsyncImage
 import com.vynce.music.ui.theme.VynceTheme
+import com.vynce.music.utils.shimmerEffect
 import com.vynce.vynceclient.models.AlbumItem
 import com.vynce.vynceclient.models.ArtistItem
 import com.vynce.vynceclient.models.PlaylistItem
@@ -104,7 +107,6 @@ fun CarouselList(
                         is AlbumItem -> item.artists?.joinToString { it.name } ?: ""
                         is PlaylistItem -> item.author?.name ?: ""
                         is ArtistItem -> "Artist"
-                        else -> ""
                     }
                 }
                 MediaItemCard(
@@ -139,16 +141,19 @@ fun MediaItemCard(
         Column {
             Box(
                 modifier = Modifier
+                    .aspectRatio(1f)
                     .fillMaxSize()
                     .clip(VynceTheme.shapes.medium)
-                    .background(Color.Black),
+                    .background(Color.Black)
+                    .shimmerEffect(),
                 contentAlignment = Alignment.Center
             ) {
                 if (imageUrl != null) {
-                    AsyncImage(
+                    SubcomposeAsyncImage(
                         model = imageUrl,
                         contentDescription = null,
-                        modifier = Modifier.fillMaxSize()
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop,
                     )
                 } else {
                     Icon(

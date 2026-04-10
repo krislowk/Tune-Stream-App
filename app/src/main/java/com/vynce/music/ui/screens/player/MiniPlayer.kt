@@ -34,8 +34,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
+import coil.compose.SubcomposeAsyncImage
 import com.vynce.music.ui.theme.VynceTheme
+import com.vynce.music.utils.shimmerEffect
 
 @Composable
 fun MiniPlayer(
@@ -80,13 +81,16 @@ fun MiniPlayer(
                     .fillMaxSize(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                AsyncImage(
+                SubcomposeAsyncImage(
                     model = song.mediaMetadata.artworkUri,
                     contentDescription = null,
                     modifier = Modifier
                         .size(48.dp)
                         .clip(RoundedCornerShape(12.dp)),
-                    contentScale = ContentScale.Crop
+                    contentScale = ContentScale.Crop,
+                    loading = {
+                        Box(modifier = Modifier.fillMaxSize().shimmerEffect())
+                    }
                 )
 
                 Spacer(modifier = Modifier.width(16.dp))

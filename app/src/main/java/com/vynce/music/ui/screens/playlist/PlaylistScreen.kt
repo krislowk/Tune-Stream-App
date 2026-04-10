@@ -1,5 +1,6 @@
 package com.vynce.music.ui.screens.playlist
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -43,6 +44,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -53,6 +55,7 @@ import com.vynce.music.ui.commponents.ListItem
 import com.vynce.music.ui.commponents.MoreOptionsSheet
 import com.vynce.music.ui.screens.player.PlayerViewModel
 import com.vynce.music.ui.theme.VynceTheme
+import com.vynce.music.utils.shareText
 import com.vynce.music.utils.toMediaItem
 import com.vynce.vynceclient.models.Artist
 import com.vynce.vynceclient.models.PlaylistItem
@@ -71,6 +74,7 @@ fun PlaylistScreen(
 ) {
     val playlist by viewModel.playlist.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+    val context = LocalContext.current
     
     var showMoreOptions by remember { mutableStateOf(false) }
     var selectedItemForOptions by remember { mutableStateOf<SongItem?>(null) }
@@ -145,10 +149,14 @@ fun PlaylistScreen(
                     subtitle = item.artists.joinToString { it.name },
                     thumbnailUrl = item.thumbnail,
                     onDismiss = { showMoreOptions = false },
-                    onAddToPlaylist = { /* TODO */ },
-                    onViewAlbum = albumId?.let { { onNavigateToAlbum(it) } },
-                    onGoToArtist = artistId?.let { { onNavigateToArtist(it) } },
-                    onShare = { /* TODO */ }
+                    onAddToPlaylist = { 
+                        Toast.makeText(context, "Added to playlist (Simulated)", Toast.LENGTH_SHORT).show()
+                    },
+                    onViewAlbum = albumId?.let { id -> { onNavigateToAlbum(id) } },
+                    onGoToArtist = artistId?.let { id -> { onNavigateToArtist(id) } },
+                    onShare = { 
+                        shareText(context, item.shareLink)
+                    }
                 )
             }
         }

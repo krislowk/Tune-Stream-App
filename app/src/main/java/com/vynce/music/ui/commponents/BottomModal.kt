@@ -15,10 +15,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.DrawerState
+import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberDrawerState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -45,14 +50,6 @@ import com.vynce.music.ui.theme.VynceTheme
  * A specialized bottom modal component designed to host a player interface.
  * It provides a "peek" (Mini Player) and an "expanded" (Full Player) state.
  * Uses Material 3's ModalBottomSheet for the expanded view.
- *
- * @param isExpanded Whether the full player is visible.
- * @param onExpandChange Callback to change the expanded state.
- * @param peekHeight The height of the mini player peek.
- * @param showSheet Whether to show the sheet at all (e.g., hide if no track is playing).
- * @param sheetContent The content of the sheet, receives the expansion progress (0f or 1f).
- * @param modifier Modifier for the container.
- * @param content The main background content (e.g., Navigation Graph).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -66,6 +63,8 @@ fun BottomModal(
     onProgress: (Float) -> Unit = {},
     onHeightChanged: (Float) -> Unit = {},
     containerColor: Color = VynceTheme.colors.background,
+    drawerContent: @Composable () -> Unit = {},
+    drawerState: DrawerState = rememberDrawerState(DrawerValue.Closed),
     content: @Composable (PaddingValues) -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -86,45 +85,56 @@ fun BottomModal(
         onProgress(modalProgress)
     }
 
-    Box(modifier = modifier.fillMaxSize().background(containerColor)) {
-        // Main Content
-        content(PaddingValues(bottom = if (showSheet && !isExpanded) peekHeight else 0.dp))
+    ModalNavigationDrawer(
+        drawerContent = drawerContent,
+        drawerState = drawerState,
+        gesturesEnabled = !isExpanded
+    ) {
+        Box(modifier = modifier
+            .fillMaxSize()
+            .background(containerColor)) {
+            // Main Content
+            content(PaddingValues(bottom = if (showSheet && !isExpanded) peekHeight else 0.dp))
 
-        // Mini Player Peek (Visible when not expanded)
-        if (showSheet && !isExpanded) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .height(peekHeight + navBarPadding)
-                    .pointerInput(Unit) {
-                        detectVerticalDragGestures { _, dragAmount ->
-                            if (dragAmount < -10) { // Significant drag up
-                                onExpandChange(true)
+            // Mini Player Peek (Visible when not expanded)
+            if (showSheet && !isExpanded) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .height(peekHeight + navBarPadding)
+                        .pointerInput(Unit) {
+                            detectVerticalDragGestures { _, dragAmount ->
+                                if (dragAmount < -10) { // Significant drag up
+                                    onExpandChange(true)
+                                }
                             }
                         }
-                    }
-                    .clickable { onExpandChange(true) }
-                    .background(VynceTheme.colors.surface)
-                    .onSizeChanged { onHeightChanged(it.height.toFloat()) }
-            ) {
-                sheetContent(0f)
+                        .clickable { onExpandChange(true) }
+                        .background(VynceTheme.colors.surface)
+                        .onSizeChanged { onHeightChanged(it.height.toFloat()) }
+                ) {
+                    sheetContent(0f)
+                }
             }
-        }
 
-        // Modal Full Player
-        if (isExpanded) {
-            ModalBottomSheet(
-                onDismissRequest = { onExpandChange(false) },
-                sheetState = sheetState,
-                dragHandle = null,
-                containerColor = VynceTheme.colors.surface,
-                scrimColor = Color.Black.copy(alpha = 0.5f),
-                shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-                contentWindowInsets = { WindowInsets(0) }
-            ) {
-                Box(modifier = Modifier.fillMaxSize()) {
-                    sheetContent(modalProgress)
+            // Modal Full Player
+            if (isExpanded) {
+                ModalBottomSheet(
+                    onDismissRequest = { onExpandChange(false) },
+                    sheetState = sheetState,
+                    dragHandle = null,
+                    containerColor = Color.Transparent,
+                    scrimColor = Color.Black.copy(alpha = 0.5f),
+                    shape = androidx.compose.ui.graphics.RectangleShape,
+                    contentWindowInsets = { WindowInsets(0) }
+                ) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.BottomCenter
+                    ) {
+                        sheetContent(modalProgress)
+                    }
                 }
             }
         }

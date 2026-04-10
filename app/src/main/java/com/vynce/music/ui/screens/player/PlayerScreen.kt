@@ -1,11 +1,6 @@
 package com.vynce.music.ui.screens.player
 
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -67,11 +62,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -84,11 +77,12 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
-import coil.compose.AsyncImage
+import coil.compose.SubcomposeAsyncImage
 import com.vynce.music.ui.commponents.BottomModal
 import com.vynce.music.ui.commponents.MoreOptionsSheet
 import com.vynce.music.ui.theme.VynceTheme
 import com.vynce.music.utils.formatTime
+import com.vynce.music.utils.shimmerEffect
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 
@@ -112,8 +106,8 @@ fun PlayerScreen(
     val progress = expansionProgress()
 
     // Smooth transition between Mini and Full UI
-    val miniPlayerAlpha = (1f - (progress * 5f)).coerceIn(0f, 1f)
-    val fullPlayerAlpha = ((progress - 0.2f) * 1.25f).coerceIn(0f, 1f)
+    val miniPlayerAlpha = (1f - (progress * 10f)).coerceIn(0f, 1f)
+    val fullPlayerAlpha = (progress * 1.5f).coerceIn(0f, 1f)
     val artworkScale = (0.7f + (progress * 0.3f)).coerceIn(0.7f, 1f)
     val artworkCornerRadius = 12.dp + (24.dp * progress)
 
@@ -149,7 +143,8 @@ fun PlayerScreen(
                 onToggleAutoplay = { viewModel.toggleAutoplay() },
                 progress = queueProgress
             )
-        }
+        },
+
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize()) {
             // Full Player UI Background & Content
@@ -225,15 +220,17 @@ fun PlayerScreen(
                                 clip = false
                             )
                             .clip(RoundedCornerShape(artworkCornerRadius))
-                            .background(colors.surface)
-                            .shimmerEffect(!uiState.isBuffering && !uiState.isFetchingMetadata && uiState.currentTrack == null),
+                            .background(colors.surface),
                         contentAlignment = Alignment.Center
                     ) {
-                        AsyncImage(
+                        SubcomposeAsyncImage(
                             model = uiState.currentTrack?.mediaMetadata?.artworkUri,
                             contentDescription = null,
                             modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
+                            contentScale = ContentScale.Crop,
+                            loading = {
+                                Box(modifier = Modifier.fillMaxSize().shimmerEffect())
+                            }
                         )
                     }
 
@@ -439,8 +436,8 @@ fun PlayerScreen(
                     thumbnailUrl = metadata.artworkUri?.toString() ?: "",
                     onDismiss = { showMoreOptions = false },
                     onAddToPlaylist = { /* TODO */ },
-                    onViewAlbum = albumId?.let { { onNavigateToAlbum(it) } },
-                    onGoToArtist = artistId?.let { { onNavigateToArtist(it) } },
+                    onViewAlbum = albumId?.let { id -> { onNavigateToAlbum(id); onClose() } },
+                    onGoToArtist = artistId?.let { id -> { onNavigateToArtist(id); onClose() } },
                     onShare = { /* TODO */ }
                 )
             }
@@ -463,13 +460,12 @@ fun TabbedQueueContent(
     var selectedTab by remember { mutableIntStateOf(0) }
     val tabs = listOf("UP NEXT", "LYRICS", "RELATED")
 
-    val surfaceHeight = if (progress < 0.1f) 80.dp else 0.dp // Not really used if we fillMaxHeight
-
     Surface(
         modifier = Modifier
             .fillMaxWidth()
             .then(if (progress > 0.1f) Modifier.fillMaxHeight(0.85f) else Modifier.height(80.dp)),
         color = colors.background,
+        tonalElevation = 8.dp,
         shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
     ) {
         if (progress < 0.1f) {
@@ -490,7 +486,7 @@ fun TabbedQueueContent(
                     color = colors.primary
                 )
                 
-                val nextTrack = uiState.queue.firstOrNull()
+                val nextTrack = uiState.queue.getOrNull(uiState.currentIndex + 1)
                 
                 if (nextTrack != null) {
                     Text(
@@ -650,15 +646,17 @@ fun QueueTab(
                                 .draggableHandle()
                         )
                         Spacer(modifier = Modifier.width(12.dp))
-                        AsyncImage(
+                        SubcomposeAsyncImage(
                             model = item.mediaMetadata.artworkUri,
                             contentDescription = null,
                             modifier = Modifier
                                 .size(48.dp)
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(colors.surface)
-                                .shimmerEffect(true),
-                            contentScale = ContentScale.Crop
+                                .background(colors.surface),
+                            contentScale = ContentScale.Crop,
+                            loading = {
+                                Box(modifier = Modifier.fillMaxSize().shimmerEffect())
+                            }
                         )
                         Spacer(modifier = Modifier.width(12.dp))
                         Column(modifier = Modifier.weight(1f)) {
@@ -733,15 +731,17 @@ fun RelatedTab(related: List<MediaItem>) {
                     .padding(vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                AsyncImage(
+                SubcomposeAsyncImage(
                     model = item.mediaMetadata.artworkUri,
                     contentDescription = null,
                     modifier = Modifier
                         .size(56.dp)
                         .clip(RoundedCornerShape(8.dp))
-                        .background(colors.surface)
-                        .shimmerEffect(true),
-                    contentScale = ContentScale.Crop
+                        .background(colors.surface),
+                    contentScale = ContentScale.Crop,
+                    loading = {
+                        Box(modifier = Modifier.fillMaxSize().shimmerEffect())
+                    }
                 )
                 Spacer(modifier = Modifier.width(16.dp))
                 Column(modifier = Modifier.weight(1f)) {
@@ -763,33 +763,4 @@ fun RelatedTab(related: List<MediaItem>) {
             }
         }
     }
-}
-
-fun Modifier.shimmerEffect(enabled: Boolean = true): Modifier = composed {
-    if (!enabled) return@composed this
-    
-    val transition = rememberInfiniteTransition(label = "shimmer")
-    val translateAnim by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1000f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1200, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "shimmerTranslate"
-    )
-
-    val shimmerColors = listOf(
-        VynceTheme.colors.surface.copy(alpha = 0.6f),
-        VynceTheme.colors.surface.copy(alpha = 0.2f),
-        VynceTheme.colors.surface.copy(alpha = 0.6f),
-    )
-
-    val brush = Brush.linearGradient(
-        colors = shimmerColors,
-        start = Offset.Zero,
-        end = Offset(x = translateAnim, y = translateAnim)
-    )
-
-    background(brush)
 }

@@ -70,7 +70,10 @@ fun NavGraph(
             PlaylistScreen(
                 id = route.id,
                 playerViewModel = playerViewModel,
-                onBackClick = { navController.popBackStack() }
+                onBackClick = { navController.popBackStack() },
+                onNavigateToAlbum = { navController.navigate(AlbumRoute(it)) },
+                onNavigateToArtist = {navController.navigate(ArtistRoute(it))}
+
             )
         }
         composable<ArtistRoute> { backStackEntry ->

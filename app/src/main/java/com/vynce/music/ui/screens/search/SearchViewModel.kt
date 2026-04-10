@@ -5,7 +5,6 @@ import androidx.lifecycle.viewModelScope
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.vynce.vynceclient.Youtube
 import com.vynce.vynceclient.models.SearchSuggestions
-import com.vynce.vynceclient.pages.ExplorePage
 import com.vynce.vynceclient.pages.SearchResult
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
@@ -26,15 +25,8 @@ class SearchViewModel @Inject constructor() : ViewModel() {
     private val _searchResult = MutableStateFlow<SearchResult?>(null)
     val searchResult = _searchResult.asStateFlow()
 
-    private val _exploreData = MutableStateFlow<ExplorePage?>(null)
-    val exploreData = _exploreData.asStateFlow()
-
     private val _isLoading = MutableStateFlow(false)
     val isLoading = _isLoading.asStateFlow()
-
-    init {
-        fetchExploreData()
-    }
 
     fun updateQuery(newQuery: String) {
         _query.value = newQuery
@@ -44,17 +36,6 @@ class SearchViewModel @Inject constructor() : ViewModel() {
             return
         }
         fetchSuggestions(newQuery)
-    }
-
-    private fun fetchExploreData() {
-        viewModelScope.launch {
-            Youtube.explore()
-                .onSuccess { _exploreData.value = it }
-                .onFailure {
-                    FirebaseCrashlytics.getInstance().recordException(it)
-                    throw it
-                }
-        }
     }
 
     private fun fetchSuggestions(query: String) {
@@ -74,12 +55,14 @@ class SearchViewModel @Inject constructor() : ViewModel() {
         viewModelScope.launch {
             _isLoading.value = true
             Youtube.search(query, filter)
-                .onSuccess { _isLoading.value = false
+                .onSuccess { 
+                    _isLoading.value = false
                     _searchResult.value = it
                 }
                 .onFailure {
+                    _isLoading.value = false
                     FirebaseCrashlytics.getInstance().recordException(it)
-                    throw it }
+                }
         }
     }
 }

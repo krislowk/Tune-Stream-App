@@ -1,21 +1,20 @@
 package com.vynce.music.ui.screens.search
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -23,6 +22,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
@@ -37,27 +37,23 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import com.vynce.music.ui.commponents.CarouselList
 import com.vynce.music.ui.commponents.ListItem
 import com.vynce.music.ui.commponents.MoreOptionsSheet
-import com.vynce.music.ui.commponents.SectionHeader
 import com.vynce.music.ui.screens.player.PlayerViewModel
 import com.vynce.music.ui.theme.VynceTheme
+import com.vynce.music.utils.shareText
 import com.vynce.music.utils.toMediaItem
 import com.vynce.vynceclient.models.AlbumItem
 import com.vynce.vynceclient.models.ArtistItem
 import com.vynce.vynceclient.models.PlaylistItem
 import com.vynce.vynceclient.models.SongItem
 import com.vynce.vynceclient.models.YTItem
-import com.vynce.vynceclient.pages.MoodAndGenres
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -70,10 +66,10 @@ fun SearchScreen(
     val query by viewModel.query.collectAsState()
     val suggestions by viewModel.suggestions.collectAsState()
     val searchResult by viewModel.searchResult.collectAsState()
-    val exploreData by viewModel.exploreData.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val focusManager = LocalFocusManager.current
-    var active by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    var active by remember { mutableStateOf(true) }
     
     var showMoreOptions by remember { mutableStateOf(false) }
     var selectedItemForOptions by remember { mutableStateOf<YTItem?>(null) }
@@ -106,7 +102,7 @@ fun SearchScreen(
                             enabled = true,
                             placeholder = { Text("Songs, artists, albums", color = colors.textSecondary) },
                             leadingIcon = {
-                                IconButton(onClick = { if (active) active = false else onBackClick() }) {
+                                IconButton(onClick = { if (active && query.isEmpty()) onBackClick() else if (active) active = false else onBackClick() }) {
                                     Icon(
                                         Icons.AutoMirrored.Filled.ArrowBack,
                                         contentDescription = "Back",
@@ -189,14 +185,18 @@ fun SearchScreen(
                                     }
                                 } else null
                             )
+                            HorizontalDivider(
+                                modifier = Modifier.padding(horizontal = 16.dp),
+                                thickness = 0.5.dp,
+                                color = colors.glassBorder.copy(alpha = 0.1f)
+                            )
                         }
                     }
-                } else if (!active) {
-                    // Show Explore Content
-                    SearchExploreContent(
-                        exploreData = exploreData,
-                        onItemClick = onItemClick
-                    )
+                } else if (!active && query.isEmpty()) {
+                    // Empty state or recent searches could go here
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text("Search for your favorite music", color = colors.textSecondary)
+                    }
                 }
             }
 
@@ -211,48 +211,15 @@ fun SearchScreen(
                     subtitle = item.artists.joinToString { it.name },
                     thumbnailUrl = item.thumbnail,
                     onDismiss = { showMoreOptions = false },
-                    onAddToPlaylist = { /* TODO */ },
-                    onViewAlbum = albumId?.let { { onItemClick("album", it) } },
-                    onGoToArtist = artistId?.let { { onItemClick("artist", it) } },
-                    onShare = { /* TODO */ }
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun SearchExploreContent(
-    exploreData: com.vynce.vynceclient.pages.ExplorePage?,
-    onItemClick: (String, String?) -> Unit
-) {
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 88.dp)
-    ) {
-        exploreData?.let { data ->
-            item {
-                CarouselList(
-                    title = "New Releases",
-                    items = data.newReleaseAlbums,
-                    onItemClick = { item -> onItemClick("album", (item as AlbumItem).browseId) }
-                )
-            }
-
-            item {
-                SectionHeader(title = "Moods & Genres")
-            }
-
-            item {
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier.padding(bottom = 24.dp)
-                ) {
-                    items(data.moodAndGenres) { mood ->
-                        MoodCard(mood = mood)
+                    onAddToPlaylist = { 
+                        Toast.makeText(context, "Added to playlist (Simulated)", Toast.LENGTH_SHORT).show()
+                    },
+                    onViewAlbum = albumId?.let { id -> { onItemClick("album", id) } },
+                    onGoToArtist = artistId?.let { id -> { onItemClick("artist", id) } },
+                    onShare = { 
+                        shareText(context, item.shareLink)
                     }
-                }
+                )
             }
         }
     }
@@ -279,42 +246,6 @@ fun SuggestionItem(suggestion: String, onClick: () -> Unit) {
             suggestion,
             color = colors.textPrimary,
             style = VynceTheme.typography.body
-        )
-    }
-}
-
-@Composable
-fun MoodCard(mood: MoodAndGenres.Item) {
-    val colors = VynceTheme.colors
-    val shapes = VynceTheme.shapes
-    Box(
-        modifier = Modifier
-            .width(160.dp)
-            .height(90.dp)
-            .clip(shapes.medium)
-            .background(Color(mood.stripeColor).copy(alpha = 0.15f))
-            .clickable { /* TODO */ }
-            .padding(16.dp),
-        contentAlignment = Alignment.BottomStart
-    ) {
-        Text(
-            text = mood.title,
-            style = VynceTheme.typography.body.copy(fontWeight = FontWeight.Bold, fontSize = 16.sp),
-            color = colors.textPrimary
-        )
-    }
-}
-
-@Preview(showBackground = true, backgroundColor = 0xFF000000)
-@Composable
-fun MoodCardPreview() {
-    VynceTheme {
-        MoodCard(
-            mood = MoodAndGenres.Item(
-                title = "Chill",
-                stripeColor = 0xFF2196F3,
-                endpoint = com.vynce.vynceclient.models.BrowseEndpoint(browseId = "1")
-            )
         )
     }
 }
