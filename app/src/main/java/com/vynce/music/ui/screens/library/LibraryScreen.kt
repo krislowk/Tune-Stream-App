@@ -66,6 +66,10 @@ import com.vynce.vynceclient.models.SongItem
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LibraryScreen(
+    onHistoryClick: () -> Unit = {},
+    onSettingsClick: () -> Unit = {},
+    onArtistClick: (String) -> Unit = {},
+    onAlbumClick: (String) -> Unit = {},
     viewModel: LibraryViewModel = hiltViewModel(),
     playerViewModel: PlayerViewModel = hiltViewModel()
 ) {
@@ -132,7 +136,7 @@ fun LibraryScreen(
 
                     Spacer(Modifier.width(8.dp))
 
-                    IconButton(onClick = { /* TODO: History */ }) {
+                    IconButton(onClick = onHistoryClick) {
                         Icon(
                             imageVector = Icons.Default.History,
                             contentDescription = "History",
@@ -200,14 +204,16 @@ fun LibraryScreen(
                             4 -> { // Artists
                                 item {
                                     ArtistGrid(
-                                        songs = state.songs
+                                        songs = state.songs,
+                                        onArtistClick = onArtistClick
                                     )
                                 }
                             }
                             1, 3 -> { // Playlists or Albums
                                 item {
                                     AlbumGrid(
-                                        songs = state.songs
+                                        songs = state.songs,
+                                        onAlbumClick = onAlbumClick
                                     )
                                 }
                             }
@@ -223,7 +229,9 @@ fun LibraryScreen(
                                     )
                                     ListItem(
                                         item = songItem,
-                                        onClick = { playerViewModel.play(song.toMediaItem()) }
+                                        onClick = { playerViewModel.play(song.toMediaItem()) },
+                                        onSwipeRight = { playerViewModel.addToQueue(song.toMediaItem()) },
+                                        onSwipeLeft = { viewModel.toggleLike(song) }
                                     )
                                 }
                             }
@@ -237,7 +245,8 @@ fun LibraryScreen(
 
 @Composable
 fun AlbumGrid(
-    songs: List<Song>
+    songs: List<Song>,
+    onAlbumClick: (String) -> Unit = {}
 ) {
     val albums = songs.distinctBy { it.album ?: it.title }
     
@@ -249,7 +258,7 @@ fun AlbumGrid(
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 row.forEach { album ->
-                    Column(modifier = Modifier.weight(1f).clickable { /* Navigate */ }) {
+                    Column(modifier = Modifier.weight(1f).clickable { onAlbumClick(album.mediaId) }) {
                         AsyncImage(
                             model = album.thumbnail,
                             contentDescription = null,
@@ -284,7 +293,8 @@ fun AlbumGrid(
 
 @Composable
 fun ArtistGrid(
-    songs: List<Song>
+    songs: List<Song>,
+    onArtistClick: (String) -> Unit = {}
 ) {
     val artists = songs.distinctBy { it.artist }
     
@@ -293,7 +303,7 @@ fun ArtistGrid(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { /* Navigate */ }
+                    .clickable { onArtistClick(artist.artist) }
                     .padding(vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {

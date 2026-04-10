@@ -51,7 +51,9 @@ fun QuickPicksCarousel(
     items: List<YTItem>,
     onItemClick: (YTItem) -> Unit = {},
     onItemMoreClick: (YTItem) -> Unit = {},
-    onPlayAllClick: () -> Unit = {}
+    onPlayAllClick: () -> Unit = {},
+    onSwipeRight: ((YTItem) -> Unit)? = null,
+    onSwipeLeft: ((YTItem) -> Unit)? = null
 ) {
     Column {
         SectionHeader(title, onPlayAllClick = onPlayAllClick)
@@ -74,6 +76,8 @@ fun QuickPicksCarousel(
                             item = item,
                             onClick = { onItemClick(item) },
                             onMoreClick = { onItemMoreClick(item) },
+                            onSwipeRight = onSwipeRight?.let { { it(item) } },
+                            onSwipeLeft = onSwipeLeft?.let { { it(item) } },
                             modifier = Modifier.padding(horizontal = 0.dp)
                         )
                     }

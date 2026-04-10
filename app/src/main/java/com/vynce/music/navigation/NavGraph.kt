@@ -8,6 +8,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
 import com.vynce.music.ui.screens.album.AlbumScreen
 import com.vynce.music.ui.screens.artist.ArtistScreen
+import com.vynce.music.ui.screens.explore.ExploreScreen
+import com.vynce.music.ui.screens.history.HistoryScreen
 import com.vynce.music.ui.screens.home.HomeScreen
 import com.vynce.music.ui.screens.library.LibraryScreen
 import com.vynce.music.ui.screens.player.PlayerViewModel
@@ -38,6 +40,18 @@ fun NavGraph(
                 }
             )
         }
+        composable<ExploreRoute> {
+            ExploreScreen(
+                onSearchClick = { navController.navigate(SearchRoute) },
+                onItemClick = { type, id ->
+                    when (type) {
+                        "album" -> id?.let { navController.navigate(AlbumRoute(it)) }
+                        "playlist" -> id?.let { navController.navigate(PlaylistRoute(it)) }
+                        "artist" -> id?.let { navController.navigate(ArtistRoute(it)) }
+                    }
+                }
+            )
+        }
         composable<SearchRoute> {
             SearchScreen(
                 playerViewModel = playerViewModel,
@@ -53,6 +67,12 @@ fun NavGraph(
         }
         composable<LibraryRoute> {
             LibraryScreen()
+        }
+        composable<HistoryRoute> {
+            HistoryScreen(
+                playerViewModel = playerViewModel,
+                onBackClick = { navController.popBackStack() }
+            )
         }
         composable<SettingsRoute> {
             SettingsScreen()

@@ -38,70 +38,83 @@ fun ListItem(
     item: YTItem,
     modifier: Modifier = Modifier,
     onClick: () -> Unit = {},
-    onMoreClick: (() -> Unit)? = null
+    onMoreClick: (() -> Unit)? = null,
+    onSwipeRight: (() -> Unit)? = null,
+    onSwipeLeft: (() -> Unit)? = null
 ) {
-
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable { onClick() }
-            .padding(vertical = 8.dp, horizontal = 16.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            modifier = Modifier
-                .size(48.dp)
-                .clip(VynceTheme.shapes.small)
-                .background(VynceTheme.colors.textPrimary.copy(0.05f)),
-            contentAlignment = Alignment.Center
+    val content = @Composable {
+        Row(
+            modifier = modifier
+                .fillMaxWidth()
+                .clickable { onClick() }
+                .padding(vertical = 8.dp, horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            SubcomposeAsyncImage(
-                model = item.thumbnail,
-                contentDescription = null,
-                modifier = Modifier.fillMaxSize(),
-                loading = {
-                    Box(modifier = Modifier.fillMaxSize().shimmerEffect())
-                }
-            )
-        }
-
-        Spacer(modifier = Modifier.width(16.dp))
-
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = item.title,
-                style = VynceTheme.typography.body.copy(
-                    fontWeight = FontWeight.Medium,
-                    fontSize = 14.sp
-                ),
-                color = VynceTheme.colors.textPrimary,
-                maxLines = 1
-            )
-            val subtitle = remember(item) {
-                when (item) {
-                    is SongItem -> item.artists.joinToString { it.name }
-                    is AlbumItem -> item.artists?.joinToString { it.name } ?: ""
-                    is PlaylistItem -> item.author?.name ?: ""
-                    is ArtistItem -> "Artist"
-                }
-            }
-            Text(
-                text = subtitle,
-                style = VynceTheme.typography.label.copy(fontSize = 10.sp),
-                color = VynceTheme.colors.textSecondary,
-                maxLines = 1
-            )
-        }
-
-        if (onMoreClick != null) {
-            IconButton(onClick = onMoreClick) {
-                Icon(
-                    imageVector = Icons.Default.MoreVert,
-                    contentDescription = "More",
-                    tint = VynceTheme.colors.textSecondary.copy(0.4f),
-                    modifier = Modifier.size(20.dp)
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(VynceTheme.shapes.small)
+                    .background(VynceTheme.colors.textPrimary.copy(0.05f)),
+                contentAlignment = Alignment.Center
+            ) {
+                SubcomposeAsyncImage(
+                    model = item.thumbnail,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    loading = {
+                        Box(modifier = Modifier.fillMaxSize().shimmerEffect())
+                    }
                 )
             }
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = item.title,
+                    style = VynceTheme.typography.body.copy(
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 14.sp
+                    ),
+                    color = VynceTheme.colors.textPrimary,
+                    maxLines = 1
+                )
+                val subtitle = remember(item) {
+                    when (item) {
+                        is SongItem -> item.artists.joinToString { it.name }
+                        is AlbumItem -> item.artists?.joinToString { it.name } ?: ""
+                        is PlaylistItem -> item.author?.name ?: ""
+                        is ArtistItem -> "Artist"
+                    }
+                }
+                Text(
+                    text = subtitle,
+                    style = VynceTheme.typography.label.copy(fontSize = 10.sp),
+                    color = VynceTheme.colors.textSecondary,
+                    maxLines = 1
+                )
+            }
+
+            if (onMoreClick != null) {
+                IconButton(onClick = onMoreClick) {
+                    Icon(
+                        imageVector = Icons.Default.MoreVert,
+                        contentDescription = "More",
+                        tint = VynceTheme.colors.textSecondary.copy(0.4f),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
         }
+    }
+
+    if (onSwipeRight != null || onSwipeLeft != null) {
+        SwipeableItem(
+            onSwipeRight = { onSwipeRight?.invoke() },
+            onSwipeLeft = { onSwipeLeft?.invoke() },
+            content = content
+        )
+    } else {
+        content()
     }
 }

@@ -28,6 +28,9 @@ class SearchViewModel @Inject constructor() : ViewModel() {
     private val _isLoading = MutableStateFlow(false)
     val isLoading = _isLoading.asStateFlow()
 
+    private val _selectedFilter = MutableStateFlow(Youtube.SearchFilter.FILTER_SONG)
+    val selectedFilter = _selectedFilter.asStateFlow()
+
     fun updateQuery(newQuery: String) {
         _query.value = newQuery
         if (newQuery.isBlank()) {
@@ -36,6 +39,13 @@ class SearchViewModel @Inject constructor() : ViewModel() {
             return
         }
         fetchSuggestions(newQuery)
+    }
+
+    fun setFilter(filter: Youtube.SearchFilter) {
+        _selectedFilter.value = filter
+        if (_query.value.isNotBlank()) {
+            search(_query.value, filter)
+        }
     }
 
     private fun fetchSuggestions(query: String) {

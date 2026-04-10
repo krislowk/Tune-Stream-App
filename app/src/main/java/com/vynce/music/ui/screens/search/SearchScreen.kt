@@ -3,6 +3,7 @@ package com.vynce.music.ui.screens.search
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -10,18 +11,23 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -40,6 +46,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -49,6 +56,7 @@ import com.vynce.music.ui.screens.player.PlayerViewModel
 import com.vynce.music.ui.theme.VynceTheme
 import com.vynce.music.utils.shareText
 import com.vynce.music.utils.toMediaItem
+import com.vynce.vynceclient.Youtube
 import com.vynce.vynceclient.models.AlbumItem
 import com.vynce.vynceclient.models.ArtistItem
 import com.vynce.vynceclient.models.PlaylistItem
@@ -67,6 +75,8 @@ fun SearchScreen(
     val suggestions by viewModel.suggestions.collectAsState()
     val searchResult by viewModel.searchResult.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+    val selectedFilter by viewModel.selectedFilter.collectAsState()
+    
     val focusManager = LocalFocusManager.current
     val context = LocalContext.current
     var active by remember { mutableStateOf(true) }
@@ -76,79 +86,116 @@ fun SearchScreen(
 
     val colors = VynceTheme.colors
 
+    val filters = listOf(
+        "Songs" to Youtube.SearchFilter.FILTER_SONG,
+        "Videos" to Youtube.SearchFilter.FILTER_VIDEO,
+        "Albums" to Youtube.SearchFilter.FILTER_ALBUM,
+        "Artists" to Youtube.SearchFilter.FILTER_ARTIST,
+        "Featured Playlists" to Youtube.SearchFilter.FILTER_FEATURED_PLAYLIST,
+        "Community Playlists" to Youtube.SearchFilter.FILTER_COMMUNITY_PLAYLIST
+    )
+
     Scaffold(
         topBar = {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .statusBarsPadding()
-                    .padding(top = 8.dp)
-            ) {
-                val searchBarColors = SearchBarDefaults.colors(
-                    containerColor = colors.surface,
-                )
-                SearchBar(
-                    inputField = {
-                        SearchBarDefaults.InputField(
-                            query = query,
-                            onQueryChange = { newQuery -> viewModel.updateQuery(newQuery) },
-                            onSearch = { searchQuery ->
-                                viewModel.search(searchQuery)
-                                active = false
-                                focusManager.clearFocus()
-                            },
-                            expanded = active,
-                            onExpandedChange = { isExpanded -> active = isExpanded },
-                            enabled = true,
-                            placeholder = { Text("Songs, artists, albums", color = colors.textSecondary) },
-                            leadingIcon = {
-                                IconButton(onClick = { if (active && query.isEmpty()) onBackClick() else if (active) active = false else onBackClick() }) {
-                                    Icon(
-                                        Icons.AutoMirrored.Filled.ArrowBack,
-                                        contentDescription = "Back",
-                                        tint = colors.textPrimary
-                                    )
-                                }
-                            },
-                            trailingIcon = {
-                                if (query.isNotEmpty()) {
-                                    IconButton(onClick = { viewModel.updateQuery("") }) {
+            Column(modifier = Modifier.background(colors.background)) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .statusBarsPadding()
+                        .padding(top = 8.dp)
+                ) {
+                    val searchBarColors = SearchBarDefaults.colors(
+                        containerColor = colors.surface,
+                    )
+                    SearchBar(
+                        inputField = {
+                            SearchBarDefaults.InputField(
+                                query = query,
+                                onQueryChange = { newQuery -> viewModel.updateQuery(newQuery) },
+                                onSearch = { searchQuery ->
+                                    viewModel.search(searchQuery, selectedFilter)
+                                    active = false
+                                    focusManager.clearFocus()
+                                },
+                                expanded = active,
+                                onExpandedChange = { isExpanded -> active = isExpanded },
+                                enabled = true,
+                                placeholder = { Text("Songs, artists, albums", color = colors.textSecondary) },
+                                leadingIcon = {
+                                    IconButton(onClick = { if (active && query.isEmpty()) onBackClick() else if (active) active = false else onBackClick() }) {
                                         Icon(
-                                            Icons.Default.Close,
-                                            contentDescription = "Clear",
+                                            Icons.AutoMirrored.Filled.ArrowBack,
+                                            contentDescription = "Back",
                                             tint = colors.textPrimary
                                         )
                                     }
-                                }
-                            },
-                            colors = searchBarColors.inputFieldColors,
-                        )
-                    },
-                    expanded = active,
-                    onExpandedChange = { isExpanded -> active = isExpanded },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = if (active) 0.dp else 16.dp),
-                    colors = searchBarColors,
-                    content = {
-                        // Suggestions List
-                        suggestions?.queries?.let { queries ->
-                            LazyColumn(modifier = Modifier.fillMaxSize()) {
-                                items(queries) { suggestion ->
-                                    SuggestionItem(
-                                        suggestion = suggestion,
-                                        onClick = {
-                                            viewModel.updateQuery(suggestion)
-                                            viewModel.search(suggestion)
-                                            active = false
-                                            focusManager.clearFocus()
+                                },
+                                trailingIcon = {
+                                    if (query.isNotEmpty()) {
+                                        IconButton(onClick = { viewModel.updateQuery("") }) {
+                                            Icon(
+                                                Icons.Default.Close,
+                                                contentDescription = "Clear",
+                                                tint = colors.textPrimary
+                                            )
                                         }
-                                    )
+                                    }
+                                },
+                                colors = searchBarColors.inputFieldColors,
+                            )
+                        },
+                        expanded = active,
+                        onExpandedChange = { isExpanded -> active = isExpanded },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = if (active) 0.dp else 16.dp),
+                        colors = searchBarColors,
+                        content = {
+                            // Suggestions List
+                            suggestions?.queries?.let { queries ->
+                                LazyColumn(modifier = Modifier.fillMaxSize()) {
+                                    items(queries) { suggestion ->
+                                        SuggestionItem(
+                                            suggestion = suggestion,
+                                            onClick = {
+                                                viewModel.updateQuery(suggestion)
+                                                viewModel.search(suggestion, selectedFilter)
+                                                active = false
+                                                focusManager.clearFocus()
+                                            }
+                                        )
+                                    }
                                 }
                             }
+                        },
+                    )
+                }
+
+                if (!active && query.isNotEmpty()) {
+                    LazyRow(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp),
+                        contentPadding = PaddingValues(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(filters) { (label, filter) ->
+                            FilterChip(
+                                selected = selectedFilter == filter,
+                                onClick = { viewModel.setFilter(filter) },
+                                label = { Text(label) },
+                                shape = RoundedCornerShape(20.dp),
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = colors.primary,
+                                    selectedLabelColor = colors.onPrimary,
+                                    containerColor = colors.surface,
+                                    labelColor = colors.textSecondary
+                                ),
+                                border = null
+                            )
                         }
-                    },
-                )
+                    }
+                }
             }
         },
         containerColor = colors.background
@@ -193,7 +240,6 @@ fun SearchScreen(
                         }
                     }
                 } else if (!active && query.isEmpty()) {
-                    // Empty state or recent searches could go here
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text("Search for your favorite music", color = colors.textSecondary)
                     }

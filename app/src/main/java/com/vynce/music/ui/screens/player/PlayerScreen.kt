@@ -3,6 +3,7 @@ package com.vynce.music.ui.screens.player
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -251,17 +252,18 @@ fun PlayerScreen(
                                 text = uiState.currentTrack?.mediaMetadata?.title?.toString() ?: "Unknown",
                                 style = VynceTheme.typography.title.copy(fontSize = 26.sp, fontWeight = FontWeight.Black),
                                 maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                color = colors.textPrimary
+                                color = colors.textPrimary,
+                                modifier = Modifier.basicMarquee()
                             )
                             Text(
                                 text = uiState.currentTrack?.mediaMetadata?.artist?.toString() ?: "Unknown",
                                 style = VynceTheme.typography.body.copy(fontSize = 18.sp, color = colors.textSecondary),
                                 maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.clickable {
-                                    uiState.currentTrack?.mediaMetadata?.extras?.getString("artist_id")?.let { onNavigateToArtist(it) }
-                                }
+                                modifier = Modifier
+                                    .clickable {
+                                        uiState.currentTrack?.mediaMetadata?.extras?.getString("artist_id")?.let { onNavigateToArtist(it) }
+                                    }
+                                    .basicMarquee()
                             )
                         }
 

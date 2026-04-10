@@ -84,6 +84,7 @@ dependencies {
     implementation(libs.firebase.crashlytics)
     implementation(libs.androidx.compose.runtime)
     implementation(libs.androidx.ui.tooling.preview)
+    implementation(libs.androidx.material3)
     debugImplementation(libs.androidx.ui.tooling)
     ksp(libs.hilt.compiler)
     implementation(libs.hilt.lifecycle.viewmodel.compose)

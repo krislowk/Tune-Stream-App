@@ -37,6 +37,9 @@ class SongRepository @Inject constructor(
     fun getLikedSongs(): Flow<List<Song>> = songDao.getLikedSongsFlow()
         .distinctUntilChanged()
 
+    fun getLocalSongs(): Flow<List<Song>> = songDao.getLocalSongsFlow()
+        .distinctUntilChanged()
+
     fun getSongsByMediaIds(mediaIds: List<String>): Flow<List<Song>> = songDao.getSongsByMediaIds(mediaIds)
         .distinctUntilChanged()
 
@@ -56,7 +59,12 @@ class SongRepository @Inject constructor(
     }
 
     suspend fun markAsPlayed(song: Song) {
-        songDao.insert(song)
+        val existing = songDao.getSongByMediaId(song.mediaId)
+        val songToInsert = existing?.let {
+            song.copy(id = it.id, isLiked = it.isLiked)
+        } ?: song
+        
+        songDao.insert(songToInsert)
         historyDao.insertHistory(History(mediaId = song.mediaId))
     }
 
@@ -88,6 +96,10 @@ class SongRepository @Inject constructor(
 
     suspend fun clearHistory() {
         historyDao.clearHistory()
+    }
+
+    suspend fun clearCache() {
+        streamCacheDao.clearAllStreams()
     }
 
     suspend fun cleanupHistory(days: Int = 30) {

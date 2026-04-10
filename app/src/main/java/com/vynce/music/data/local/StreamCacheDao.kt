@@ -16,4 +16,7 @@ interface StreamCacheDao {
 
     @Query("DELETE FROM stream_cache WHERE timestamp < :expiryTime")
     suspend fun clearExpiredStreams(expiryTime: Long)
+
+    @Query("DELETE FROM stream_cache")
+    suspend fun clearAllStreams()
 }

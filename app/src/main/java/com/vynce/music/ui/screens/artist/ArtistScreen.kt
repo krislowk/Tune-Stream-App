@@ -122,6 +122,11 @@ fun ArtistScreen(
                             is AlbumItem -> onAlbumClick(item.browseId)
                             else -> {}
                         }
+                    },
+                    onSwipeRight = { item ->
+                        if (item is SongItem) {
+                            playerViewModel.addToQueue(item.toMediaItem())
+                        }
                     }
                 )
             }
@@ -134,7 +139,8 @@ fun ArtistContent(
     artist: ArtistPage,
     onPlayClick: () -> Unit,
     onShuffleClick: () -> Unit,
-    onItemClick: (Any) -> Unit
+    onItemClick: (Any) -> Unit,
+    onSwipeRight: (Any) -> Unit = {}
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -155,7 +161,8 @@ fun ArtistContent(
             items(section.items) { item ->
                 ListItem(
                     item = item,
-                    onClick = { onItemClick(item) }
+                    onClick = { onItemClick(item) },
+                    onSwipeRight = { onSwipeRight(item) }
                 )
             }
         }

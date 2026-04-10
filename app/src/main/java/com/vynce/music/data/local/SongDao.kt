@@ -38,6 +38,9 @@ interface SongDao {
     @Query("SELECT * FROM songs WHERE mediaId = :mediaId")
     suspend fun getSongByMediaId(mediaId: String): Song?
 
+    @Query("SELECT * FROM songs WHERE isYoutube = 0 ORDER BY dateAdded DESC")
+    fun getLocalSongsFlow(): Flow<List<Song>>
+
     @Query("SELECT * FROM songs WHERE isLiked = 1 ORDER BY dateAdded DESC")
     fun getLikedSongsFlow(): Flow<List<Song>>
 

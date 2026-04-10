@@ -86,4 +86,18 @@ class PreferenceRepository @Inject constructor(
         Youtube.visitorData = ""
         authDao.clearSession()
     }
+
+    // --- Generic Preferences ---
+
+    fun getString(key: String, default: String): String = prefs.getString(key, default) ?: default
+    fun saveString(key: String, value: String) = prefs.edit { putString(key, value) }
+
+    fun getBoolean(key: String, default: Boolean): Boolean = prefs.getBoolean(key, default)
+    fun saveBoolean(key: String, value: Boolean) = prefs.edit { putBoolean(key, value) }
+
+    fun getFloat(key: String, default: Float): Float = prefs.getFloat(key, default)
+    fun saveFloat(key: String, value: Float) = prefs.edit { putFloat(key, value) }
+
+    fun getInt(key: String, default: Int): Int = prefs.getInt(key, default)
+    fun saveInt(key: String, value: Int) = prefs.edit { putInt(key, value) }
 }

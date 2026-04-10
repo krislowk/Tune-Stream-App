@@ -51,7 +51,7 @@ class LibraryViewModel @Inject constructor(
     }.flatMapLatest { (tab, query) ->
         val songsFlow = when (tab) {
             0 -> songRepository.getLikedSongs() // Liked
-            2 -> songRepository.getAllSongs() // Songs
+            2 -> songRepository.getLocalSongs() // Songs (Local)
             else -> songRepository.getAllSongs() // Playlists, Albums, Artists (Filtered in Screen)
         }
         

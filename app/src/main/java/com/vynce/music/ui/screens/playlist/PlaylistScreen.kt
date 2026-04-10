@@ -134,6 +134,9 @@ fun PlaylistScreen(
                     onMoreClick = { song ->
                         selectedItemForOptions = song
                         showMoreOptions = true
+                    },
+                    onSwipeRight = { song ->
+                        playerViewModel.addToQueue(song.toMediaItem())
                     }
                 )
             }
@@ -169,7 +172,8 @@ fun PlaylistContent(
     onPlayClick: () -> Unit,
     onShuffleClick: () -> Unit,
     onTrackClick: (SongItem) -> Unit,
-    onMoreClick: (SongItem) -> Unit
+    onMoreClick: (SongItem) -> Unit,
+    onSwipeRight: (SongItem) -> Unit = {}
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -187,7 +191,8 @@ fun PlaylistContent(
             ListItem(
                 item = song,
                 onClick = { onTrackClick(song) },
-                onMoreClick = { onMoreClick(song) }
+                onMoreClick = { onMoreClick(song) },
+                onSwipeRight = { onSwipeRight(song) }
             )
         }
     }

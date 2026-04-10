@@ -21,6 +21,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.WifiOff
 import androidx.compose.material3.Button
@@ -131,6 +132,11 @@ fun HomeScreen(
                                         if (songs.isNotEmpty()) {
                                             playerViewModel.playAll(songs.map { it.toMediaItem() })
                                         }
+                                    },
+                                    onSwipeRight = { item ->
+                                        if (item is SongItem) {
+                                            playerViewModel.addToQueue(item.toMediaItem())
+                                        }
                                     }
                                 )
                             } else {
@@ -175,19 +181,41 @@ fun HomeTopBar() {
         modifier = Modifier
             .fillMaxWidth()
             .statusBarsPadding()
-            .padding(horizontal = 16.dp, vertical = 16.dp),
+            .padding(horizontal = 16.dp, vertical = 24.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            val greeting =  remember { getGreeting() }
+            val greeting = remember { getGreeting() }
             Text(
                 text = greeting,
                 style = VynceTheme.typography.title.copy(
                     fontSize = 32.sp,
-                    fontWeight = FontWeight.Black
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = (-1).sp
                 ),
                 color = VynceTheme.colors.textPrimary
+            )
+            Text(
+                text = "Discover your rhythm today",
+                style = VynceTheme.typography.label,
+                color = VynceTheme.colors.textSecondary
+            )
+        }
+        
+        Box(
+            modifier = Modifier
+                .size(44.dp)
+                .clip(CircleShape)
+                .background(VynceTheme.colors.glassSurface)
+                .padding(2.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.MusicNote,
+                contentDescription = null,
+                tint = VynceTheme.colors.primary,
+                modifier = Modifier.size(24.dp)
             )
         }
     }
