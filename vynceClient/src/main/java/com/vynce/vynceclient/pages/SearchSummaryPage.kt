@@ -224,3 +224,15 @@ data class SearchSummaryPage(
         }
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+

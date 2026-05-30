@@ -22,3 +22,15 @@ class ExampleInstrumentedTest {
         assertEquals("com.vynce.vynceclient.test", appContext.packageName)
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+

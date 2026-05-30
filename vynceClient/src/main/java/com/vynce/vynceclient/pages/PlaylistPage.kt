@@ -6,6 +6,7 @@ import com.vynce.vynceclient.models.MusicResponsiveListItemRenderer
 import com.vynce.vynceclient.models.PlaylistItem
 import com.vynce.vynceclient.models.SongItem
 import com.vynce.vynceclient.models.oddElements
+import com.vynce.vynceclient.models.splitBySeparator
 import com.vynce.vynceclient.utils.parseTime
 
 data class PlaylistPage(
@@ -16,18 +17,28 @@ data class PlaylistPage(
 ) {
     companion object {
         fun fromMusicResponsiveListItemRenderer(renderer: MusicResponsiveListItemRenderer): SongItem? {
+            // Extract library tokens using the new method that properly handles multiple toggle items
+            val libraryTokens = PageHelper.extractLibraryTokensFromMenuItems(renderer.menu?.menuRenderer?.items)
+
+            // Split the secondary line by bullet separator to separate artists from other metadata (like views)
+            val secondaryLineRuns = renderer.flexColumns
+                .getOrNull(1)
+                ?.musicResponsiveListItemFlexColumnRenderer
+                ?.text
+                ?.runs
+                ?.splitBySeparator()
+
             return SongItem(
                 id = renderer.playlistItemData?.videoId ?: return null,
                 title = renderer.flexColumns.firstOrNull()
                     ?.musicResponsiveListItemFlexColumnRenderer?.text
                     ?.runs?.firstOrNull()?.text ?: return null,
-
-                artists = renderer.flexColumns.getOrNull(1)?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.oddElements()?.map {
+                artists = secondaryLineRuns?.firstOrNull()?.oddElements()?.map {
                     Artist(
                         name = it.text,
                         id = it.navigationEndpoint?.browseEndpoint?.browseId,
                     )
-                }.orEmpty().ifEmpty { return null },
+                }.orEmpty(),
                 album = renderer.flexColumns.getOrNull(2)?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.firstOrNull()?.let {
                     Album(
                         name = it.text,
@@ -35,12 +46,29 @@ data class PlaylistPage(
                     )
                 },
                 duration = renderer.fixedColumns?.firstOrNull()?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.firstOrNull()?.text?.parseTime(),
+                musicVideoType = renderer.musicVideoType,
                 thumbnail = renderer.thumbnail?.musicThumbnailRenderer?.getThumbnailUrl() ?: return null,
                 explicit = renderer.badges?.find {
                     it.musicInlineBadgeRenderer?.icon?.iconType == "MUSIC_EXPLICIT_BADGE"
                 } != null,
-                endpoint = renderer.overlay?.musicItemThumbnailOverlayRenderer?.content?.musicPlayButtonRenderer?.playNavigationEndpoint?.watchEndpoint
+                endpoint = renderer.overlay?.musicItemThumbnailOverlayRenderer?.content?.musicPlayButtonRenderer?.playNavigationEndpoint?.watchEndpoint,
+                setVideoId = renderer.playlistItemData.playlistSetVideoId ?: return null,
+                libraryAddToken = libraryTokens.addToken,
+                libraryRemoveToken = libraryTokens.removeToken,
+                isEpisode = renderer.isEpisode
             )
         }
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,6 +1,5 @@
 package com.vynce.vynceclient.models
 
-import com.vynce.vynceclient.models.NavigationEndpoint
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -29,10 +28,56 @@ fun List<Run>.splitBySeparator(): List<List<Run>> {
     return res
 }
 
-fun List<List<Run>>.clean(): List<List<Run>> =
-    if (getOrNull(0)?.getOrNull(0)?.navigationEndpoint != null) this
-    else this.drop(1)
-
-fun List<Run>.oddElements() = filterIndexed { index, _ ->
-    index % 2 == 0
+fun List<Run>.splitArtistsByConjunction(): List<Run> {
+    val result = mutableListOf<Run>()
+    val words = ArtistConjunctions.conjunctions
+    val conjunctionPattern = Regex(
+        if (words.isNotEmpty()) " (${words.joinToString("|") { Regex.escape(it) }}) | & "
+        else " & "
+    )
+    forEach { run ->
+        val text = run.text
+        if (text.contains(conjunctionPattern)) {
+            val parts = text.split(conjunctionPattern)
+            parts.forEachIndexed { _, part ->
+                if (part.isNotBlank()) {
+                    result.add(Run(part.trim(), run.navigationEndpoint))
+                }
+            }
+        } else {
+            result.add(run)
+        }
+    }
+    return result
 }
+
+object ArtistConjunctions {
+    var conjunctions: List<String> = listOf("and")
+}
+
+fun List<List<Run>>.clean(): List<List<Run>> {
+    val firstGroup = getOrNull(0) ?: return this
+    val hasArtistSignals = firstGroup.any { it.navigationEndpoint != null } ||
+            firstGroup.any { it.text.contains(" & ") } ||
+            ArtistConjunctions.conjunctions.any { conj ->
+                firstGroup.any { it.text.trim().equals(conj, ignoreCase = true) }
+            }
+    return if (hasArtistSignals) this else drop(1)
+}
+
+fun List<Run>.oddElements() =
+    filterIndexed { index, _ ->
+        index % 2 == 0
+    }
+
+
+
+
+
+
+
+
+
+
+
+

@@ -25,3 +25,15 @@ data class ThumbnailRenderer @OptIn(ExperimentalSerializationApi::class) constru
         val backupRenderer: MusicThumbnailRenderer,
     )
 }
+
+
+
+
+
+
+
+
+
+
+
+

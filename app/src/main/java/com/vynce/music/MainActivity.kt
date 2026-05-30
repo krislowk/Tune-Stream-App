@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -47,16 +48,15 @@ import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.compose.rememberNavController
-import com.vynce.music.data.repository.PreferenceRepository
+import com.vynce.music.repository.PreferenceRepository
 import com.vynce.music.navigation.NavGraph
-import com.vynce.music.ui.commponents.BottomBar
-import com.vynce.music.ui.commponents.BottomModal
-import com.vynce.music.ui.commponents.TopBar
+import com.vynce.music.ui.components.BottomBar
+import com.vynce.music.ui.components.BottomModal
+import com.vynce.music.ui.components.TopBar
 import com.vynce.music.ui.screens.player.PlayerScreen
 import com.vynce.music.ui.screens.player.PlayerViewModel
 import com.vynce.music.ui.theme.VynceTheme
-import com.yushosei.newpipe.extractor.NewPipe
-import com.yushosei.newpipe.util.DefaultDownloaderImpl
+import com.vynce.vynceclient.YouTube
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
@@ -97,10 +97,7 @@ class MainActivity : ComponentActivity() {
 
                 LaunchedEffect(Unit) {
                     preferenceRepository.ensureInitialized()
-                    if (!isReady) {
-                        NewPipe.init(DefaultDownloaderImpl.initDefault())
-                        isReady = true
-                    }
+                    isReady = true
                 }
 
                 LaunchedEffect(permission) {
@@ -240,3 +237,15 @@ fun VynceApp() {
         }
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+

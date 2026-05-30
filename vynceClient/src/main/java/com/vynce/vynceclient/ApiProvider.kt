@@ -1,15 +1,7 @@
 package com.vynce.vynceclient
 
-import com.vynce.vynceclient.models.YtClient
+import com.vynce.vynceclient.models.YouTubeClient
 import com.vynce.vynceclient.models.YtLocale
-import com.vynce.vynceclient.models.response.AccountMenuResponse
-import com.vynce.vynceclient.models.response.BrowseResponse
-import com.vynce.vynceclient.models.response.GetQueueResponse
-import com.vynce.vynceclient.models.response.GetSearchSuggestionsResponse
-import com.vynce.vynceclient.models.response.GetTranscriptResponse
-import com.vynce.vynceclient.models.response.NextResponse
-import com.vynce.vynceclient.models.response.PlayerResponse
-import com.vynce.vynceclient.models.response.SearchResponse
 import io.ktor.client.HttpClient
 import io.ktor.client.statement.HttpResponse
 import java.net.Proxy
@@ -17,61 +9,76 @@ import java.net.Proxy
 interface ApiProvider {
 
     var locale: YtLocale
-    var visitorData: String
+    var visitorData: String?
     var cookie: String?
     var proxy: Proxy?
+    var proxyAuth: String?
     var useLoginForBrowse: Boolean
 
     suspend fun search(
-        client: YtClient,
+        client: YouTubeClient,
         query: String? = null,
         params: String? = null,
         continuation: String? = null,
-    ): SearchResponse
+    ): HttpResponse
 
     suspend fun browse(
-        client: YtClient,
+        client: YouTubeClient,
         browseId: String? = null,
         params: String? = null,
         continuation: String? = null,
         setLogin: Boolean = false,
-    ): BrowseResponse
+    ): HttpResponse
 
     suspend fun player(
-        client: YtClient,
+        client: YouTubeClient,
         videoId: String,
         playlistId: String? = null,
-    ): PlayerResponse
+        signatureTimestamp: Int?,
+        poToken: String? = null,
+    ): HttpResponse
 
     suspend fun next(
-        client: YtClient,
+        client: YouTubeClient,
         videoId: String?,
         playlistId: String?,
         playlistSetVideoId: String?,
         index: Int?,
         params: String?,
         continuation: String? = null,
-    ): NextResponse
+    ): HttpResponse
 
     suspend fun getSearchSuggestions(
-        client: YtClient,
+        client: YouTubeClient,
         input: String,
-    ): GetSearchSuggestionsResponse
+    ): HttpResponse
 
     suspend fun getQueue(
-        client: YtClient,
+        client: YouTubeClient,
         videoIds: List<String>?,
         playlistId: String?,
-    ): GetQueueResponse
+    ): HttpResponse
 
     suspend fun getTranscript(
-        client: YtClient,
+        client: YouTubeClient,
         videoId: String,
-    ): GetTranscriptResponse
+    ): HttpResponse
 
-    suspend fun accountMenu(client: YtClient): AccountMenuResponse
+    suspend fun accountMenu(client: YouTubeClient): HttpResponse
 
     suspend fun getSwJsData(): HttpResponse
 
     fun getHttpClient(): HttpClient
 }
+
+
+
+
+
+
+
+
+
+
+
+

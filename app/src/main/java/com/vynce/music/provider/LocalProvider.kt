@@ -3,7 +3,7 @@ package com.vynce.music.provider
 import android.content.ContentUris
 import android.content.Context
 import android.provider.MediaStore
-import com.vynce.music.data.model.Song
+import com.vynce.music.models.Song
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -65,3 +65,15 @@ class LocalProvider @Inject constructor(@ApplicationContext private val context:
         return songList
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+

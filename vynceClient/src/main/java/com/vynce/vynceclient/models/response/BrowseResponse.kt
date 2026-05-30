@@ -4,29 +4,32 @@ import com.vynce.vynceclient.models.Button
 import com.vynce.vynceclient.models.Continuation
 import com.vynce.vynceclient.models.GridRenderer
 import com.vynce.vynceclient.models.Menu
+import com.vynce.vynceclient.models.MusicDetailHeaderRenderer
+import com.vynce.vynceclient.models.MusicEditablePlaylistDetailHeaderRenderer
 import com.vynce.vynceclient.models.MusicShelfRenderer
 import com.vynce.vynceclient.models.ResponseContext
 import com.vynce.vynceclient.models.Runs
 import com.vynce.vynceclient.models.SectionListRenderer
+import com.vynce.vynceclient.models.SubscriptionButton
 import com.vynce.vynceclient.models.Tabs
 import com.vynce.vynceclient.models.ThumbnailRenderer
-import com.vynce.vynceclient.models.Thumbnails
 import kotlinx.serialization.Serializable
 
 @Serializable
 data class BrowseResponse(
     val contents: Contents?,
     val continuationContents: ContinuationContents?,
+    val onResponseReceivedActions: List<ResponseAction>?,
     val header: Header?,
     val microformat: Microformat?,
     val responseContext: ResponseContext,
-    val background: MusicThumbnailRenderer?,
+    val background: ThumbnailRenderer?
 ) {
     @Serializable
     data class Contents(
         val singleColumnBrowseResultsRenderer: Tabs?,
-        val twoColumnBrowseResultsRenderer: TwoColumnBrowseResultsRenderer?,
         val sectionListRenderer: SectionListRenderer?,
+        val twoColumnBrowseResultsRenderer: TwoColumnBrowseResultsRenderer?,
     )
 
     @Serializable
@@ -34,16 +37,9 @@ data class BrowseResponse(
         val tabs: List<Tabs.Tab?>?,
         val secondaryContents: SecondaryContents?,
     )
-
     @Serializable
     data class SecondaryContents(
         val sectionListRenderer: SectionListRenderer?,
-    )
-
-    @Serializable
-    data class MusicThumbnailRenderer(
-        val thumbnail: Thumbnails?,
-        val thumbnailCrop: String?,
     )
 
     @Serializable
@@ -51,23 +47,34 @@ data class BrowseResponse(
         val sectionListContinuation: SectionListContinuation?,
         val musicPlaylistShelfContinuation: MusicPlaylistShelfContinuation?,
         val gridContinuation: GridContinuation?,
+        val musicShelfContinuation: MusicShelfRenderer?
     ) {
         @Serializable
         data class SectionListContinuation(
-            val contents: List<SectionListRenderer.Content>,
+            val contents: List<SectionListRenderer.Content> = emptyList(),
             val continuations: List<Continuation>?,
         )
 
         @Serializable
         data class MusicPlaylistShelfContinuation(
-            val contents: List<MusicShelfRenderer.Content>,
+            val contents: List<MusicShelfRenderer.Content> = emptyList(),
             val continuations: List<Continuation>?,
         )
 
         @Serializable
         data class GridContinuation(
-            val items: List<GridRenderer.Item>,
+            val items: List<GridRenderer.Item> = emptyList(),
             val continuations: List<Continuation>?,
+        )
+    }
+
+    @Serializable
+    data class ResponseAction(
+        val appendContinuationItemsAction: ContinuationItems?,
+    ) {
+        @Serializable
+        data class ContinuationItems(
+            val continuationItems: List<MusicShelfRenderer.Content>?,
         )
     }
 
@@ -86,28 +93,20 @@ data class BrowseResponse(
             val thumbnail: ThumbnailRenderer?,
             val playButton: Button?,
             val startRadioButton: Button?,
+            val subscriptionButton: SubscriptionButton?,
             val menu: Menu,
-        )
-
-        @Serializable
-        data class MusicDetailHeaderRenderer(
-            val title: Runs,
-            val subtitle: Runs,
-            val secondSubtitle: Runs,
-            val description: Runs?,
-            val thumbnail: ThumbnailRenderer,
-            val menu: Menu,
-        )
-
-        @Serializable
-        data class MusicEditablePlaylistDetailHeaderRenderer(
-            val header: Header,
+            val subscriptionButton2: SubscriptionButton2?,
+            val monthlyListenerCount: Runs? = null,
         ) {
             @Serializable
-            data class Header(
-                val musicDetailHeaderRenderer: MusicDetailHeaderRenderer?,
-                val musicResponsiveHeaderRenderer: MusicHeaderRenderer?,
-            )
+            data class SubscriptionButton2(
+                val subscribeButtonRenderer: SubscribeButtonRenderer?,
+            ) {
+                @Serializable
+                data class SubscribeButtonRenderer(
+                    val subscriberCountWithSubscribeText: Runs?,
+                )
+            }
         }
 
         @Serializable
@@ -115,6 +114,7 @@ data class BrowseResponse(
             val title: Runs,
             val foregroundThumbnail: ThumbnailRenderer,
             val thumbnail: ThumbnailRenderer?,
+            val subscriptionButton: SubscriptionButton?,
         )
 
         @Serializable
@@ -132,15 +132,13 @@ data class BrowseResponse(
             val straplineTextOne: Runs?,
             val straplineThumbnail: MusicThumbnailRenderer?,
         )
-
         @Serializable
         data class MusicThumbnail(
             val url: String?,
         )
-
         @Serializable
         data class MusicThumbnailRenderer(
-            val musicThumbnailRenderer: BrowseResponse.MusicThumbnailRenderer,
+            val musicThumbnailRenderer: MusicThumbnailRenderer,
             val thumbnails: List<MusicThumbnail>?,
         )
     }
@@ -155,3 +153,15 @@ data class BrowseResponse(
         )
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+

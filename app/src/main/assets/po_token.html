@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>PoToken Generation</title>
+</head>
+<body>
+    <script>
+        var webPoSignalOutput = "";
+        var integrityToken = "";
+
+        // Placeholder for BotGuard loading logic
+        // In a real scenario, this would load the actual BotGuard script
+        async function runBotGuard(data) {
+            console.log("runBotGuard called");
+            // Simulate BotGuard processing
+            return {
+                webPoSignalOutput: "simulated_signal_" + Date.now(),
+                botguardResponse: "simulated_bg_res_" + Date.now()
+            };
+        }
+
+        async function createPoTokenMinter(signal, token) {
+            console.log("createPoTokenMinter called");
+            webPoSignalOutput = signal;
+            integrityToken = token;
+            return true;
+        }
+
+        async function obtainPoToken(identifier) {
+            console.log("obtainPoToken called");
+            // Simulate token generation
+            // The identifier is a Uint8Array, we return a Uint8Array as well
+            var result = new Uint8Array(32);
+            for(var i=0; i<32; i++) result[i] = Math.floor(Math.random() * 256);
+            return result;
+        }
+    </script>
+</body>
+</html>

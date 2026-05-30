@@ -9,3 +9,15 @@ data class SearchBody(
     val query: String? = null,
     val params: String? = null
 )
+
+
+
+
+
+
+
+
+
+
+
+

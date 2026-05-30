@@ -18,3 +18,15 @@ data class SearchSuggestionsSectionRenderer(
         )
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+

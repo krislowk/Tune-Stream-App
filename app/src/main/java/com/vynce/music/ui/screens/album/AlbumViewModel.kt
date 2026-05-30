@@ -2,7 +2,6 @@ package com.vynce.music.ui.screens.album
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.vynce.music.provider.YoutubeProvider
 import com.vynce.vynceclient.pages.AlbumPage
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -29,7 +28,7 @@ class AlbumViewModel @Inject constructor(
             repository.getAlbum(browseId)
                 .catch { e -> 
                     _isLoading.value = false
-                    FirebaseCrashlytics.getInstance().recordException(e)
+                    e.printStackTrace()
                 }
                 .collect {
                     _isLoading.value = false
@@ -38,3 +37,15 @@ class AlbumViewModel @Inject constructor(
         }
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+

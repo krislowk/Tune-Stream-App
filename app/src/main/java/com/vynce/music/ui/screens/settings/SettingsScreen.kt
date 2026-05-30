@@ -1,5 +1,6 @@
 package com.vynce.music.ui.screens.settings
 
+import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -21,6 +22,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.BatteryFull
 import androidx.compose.material.icons.outlined.DeleteSweep
@@ -68,9 +70,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import coil.compose.AsyncImage
-import com.vynce.music.ui.commponents.Card
+import com.vynce.music.repository.constants.PreferenceConstants
+import com.vynce.music.ui.components.Card
 import com.vynce.music.ui.theme.VynceTheme
 import kotlinx.coroutines.flow.MutableStateFlow
 
@@ -99,7 +104,7 @@ fun SettingsScreen(
         )
         SelectionType.AUDIO_QUALITY -> SettingsSelectionDialog(
             title = "Audio Quality",
-            options = listOf("Low (48kbps)" to "Low (48kbps)", "Normal (128kbps)" to "Normal (128kbps)", "High (256kbps)" to "High (256kbps)", "Always High" to "Always High"),
+            options = listOf("Auto" to "Auto", "Low (48kbps)" to "Low (48kbps)", "Normal (128kbps)" to "Normal (128kbps)", "High (256kbps)" to "High (256kbps)"),
             selectedOption = viewModel.audioQuality.collectAsState().value,
             onOptionSelected = { viewModel.setAudioQuality(it); activeSelection = null },
             onDismiss = { activeSelection = null }
@@ -168,21 +173,21 @@ fun SettingsScreen(
                 subtitle = "Keep volume consistent across tracks",
                 icon = Icons.Outlined.GraphicEq,
                 state = viewModel.normalizeVolume,
-                onToggle = { viewModel.toggleBoolean("normalize_volume", viewModel.normalizeVolume, it) }
+                onToggle = { viewModel.toggleBoolean(PreferenceConstants.NORMALIZE_VOLUME, viewModel.normalizeVolume, it) }
             )
             SettingsToggleItem(
                 title = "Skip Silence",
                 subtitle = "Automatically skip silent parts of songs",
                 icon = Icons.Outlined.SkipNext,
                 state = viewModel.skipSilence,
-                onToggle = { viewModel.toggleBoolean("skip_silence", viewModel.skipSilence, it) }
+                onToggle = { viewModel.toggleBoolean(PreferenceConstants.SKIP_SILENCE, viewModel.skipSilence, it) }
             )
             SettingsToggleItem(
                 title = "Crossfade",
                 subtitle = "Smooth transition between songs",
                 icon = Icons.Outlined.LibraryMusic,
                 state = viewModel.crossfadeEnabled,
-                onToggle = { viewModel.toggleBoolean("crossfade_enabled", viewModel.crossfadeEnabled, it) }
+                onToggle = { viewModel.toggleBoolean(PreferenceConstants.CROSSFADE_ENABLED, viewModel.crossfadeEnabled, it) }
             )
             SettingsSelectItem(
                 title = "Playback Speed",
@@ -206,7 +211,7 @@ fun SettingsScreen(
                 subtitle = "Save mobile data",
                 icon = Icons.Outlined.Wifi,
                 state = viewModel.wifiOnlyDownloads,
-                onToggle = { viewModel.toggleBoolean("wifi_only_downloads", viewModel.wifiOnlyDownloads, it) }
+                onToggle = { viewModel.toggleBoolean(PreferenceConstants.WIFI_ONLY_DOWNLOADS, viewModel.wifiOnlyDownloads, it) }
             )
             SettingsSelectItem(
                 title = "Download Quality",
@@ -233,7 +238,7 @@ fun SettingsScreen(
                 subtitle = "Theme matches your wallpaper",
                 icon = Icons.Outlined.Palette,
                 state = viewModel.dynamicColors,
-                onToggle = { viewModel.toggleBoolean("dynamic_colors", viewModel.dynamicColors, it) }
+                onToggle = { viewModel.toggleBoolean(PreferenceConstants.DYNAMIC_COLORS, viewModel.dynamicColors, it) }
             )
             SettingsSelectItem(
                 title = "Language",
@@ -251,20 +256,20 @@ fun SettingsScreen(
                 subtitle = "Hide potentially mature content",
                 icon = Icons.Outlined.Lock,
                 state = viewModel.restrictedMode,
-                onToggle = { viewModel.toggleBoolean("restricted_mode", viewModel.restrictedMode, it) }
+                onToggle = { viewModel.toggleBoolean(PreferenceConstants.RESTRICTED_MODE, viewModel.restrictedMode, it) }
             )
             SettingsToggleItem(
                 title = "Enable History",
                 subtitle = "Personalize your recommendations",
                 icon = Icons.Outlined.History,
                 state = viewModel.enableHistory,
-                onToggle = { viewModel.toggleBoolean("enable_history", viewModel.enableHistory, it) }
+                onToggle = { viewModel.toggleBoolean(PreferenceConstants.ENABLE_HISTORY, viewModel.enableHistory, it) }
             )
             SettingsToggleItem(
                 title = "Show Lyrics on Lockscreen",
                 icon = Icons.Outlined.Lyrics,
                 state = viewModel.showLyricsOnLockscreen,
-                onToggle = { viewModel.toggleBoolean("show_lyrics_lockscreen", viewModel.showLyricsOnLockscreen, it) }
+                onToggle = { viewModel.toggleBoolean(PreferenceConstants.SHOW_LYRICS_LOCKSCREEN, viewModel.showLyricsOnLockscreen, it) }
             )
             SettingsSelectItem(
                 title = "Content Region",
@@ -282,27 +287,27 @@ fun SettingsScreen(
                 subtitle = "Show personalized recommendations",
                 icon = Icons.Outlined.AccountCircle,
                 state = viewModel.useLoginForBrowse,
-                onToggle = { viewModel.toggleBoolean("use_login_for_browse", viewModel.useLoginForBrowse, it) }
+                onToggle = { viewModel.toggleBoolean(PreferenceConstants.USE_LOGIN_FOR_BROWSE, viewModel.useLoginForBrowse, it) }
             )
             SettingsToggleItem(
                 title = "External Player",
                 subtitle = "Use a third-party app for playback",
                 icon = Icons.AutoMirrored.Outlined.OpenInNew,
                 state = viewModel.externalPlayerEnabled,
-                onToggle = { viewModel.toggleBoolean("external_player_enabled", viewModel.externalPlayerEnabled, it) }
+                onToggle = { viewModel.toggleBoolean(PreferenceConstants.EXTERNAL_PLAYER_ENABLED, viewModel.externalPlayerEnabled, it) }
             )
             SettingsToggleItem(
                 title = "Enable Proxy",
                 icon = Icons.Outlined.VpnLock,
                 state = viewModel.proxyEnabled,
-                onToggle = { viewModel.toggleBoolean("proxy_enabled", viewModel.proxyEnabled, it) }
+                onToggle = { viewModel.toggleBoolean(PreferenceConstants.PROXY_ENABLED, viewModel.proxyEnabled, it) }
             )
             SettingsToggleItem(
                 title = "Battery Optimization",
                 subtitle = "Recommended to disable for background play",
                 icon = Icons.Outlined.BatteryFull,
                 state = viewModel.batteryOptimization,
-                onToggle = { viewModel.toggleBoolean("battery_optimization", viewModel.batteryOptimization, it) }
+                onToggle = { viewModel.toggleBoolean(PreferenceConstants.BATTERY_OPTIMIZATION, viewModel.batteryOptimization, it) }
             )
         }
 
@@ -324,6 +329,51 @@ fun SettingsScreen(
                 showLoginDialog = false
             }
         )
+    }
+
+    if (showWebViewLogin) {
+        Dialog(
+            onDismissRequest = { showWebViewLogin = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            androidx.compose.material3.Surface(
+                modifier = Modifier.fillMaxSize(),
+                color = VynceTheme.colors.background
+            ) {
+                Column(modifier = Modifier.fillMaxSize()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        IconButton(onClick = { showWebViewLogin = false }) {
+                            Icon(Icons.Default.Close, contentDescription = "Close", tint = VynceTheme.colors.textPrimary)
+                        }
+                        Text(
+                            "Login to YouTube Music",
+                            style = VynceTheme.typography.body.copy(fontWeight = FontWeight.Bold),
+                            color = VynceTheme.colors.textPrimary,
+                            modifier = Modifier.padding(start = 8.dp)
+                        )
+                    }
+                    LoginWebView(
+                        onLoginSuccess = { cookie, visitorData ->
+
+                            viewModel.login(cookie, visitorData)
+
+                            showWebViewLogin = false
+                        },
+
+                        onLoginFailed = { error ->
+                            Log.e("Login", error)
+                        },
+
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -542,3 +592,15 @@ fun SettingsActionItem(title: String, subtitle: String? = null, icon: ImageVecto
         Icon(imageVector = Icons.Default.ChevronRight, contentDescription = null, tint = VynceTheme.colors.textSecondary)
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+

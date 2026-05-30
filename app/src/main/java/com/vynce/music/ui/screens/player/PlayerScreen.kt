@@ -79,8 +79,8 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import coil.compose.SubcomposeAsyncImage
-import com.vynce.music.ui.commponents.BottomModal
-import com.vynce.music.ui.commponents.MoreOptionsSheet
+import com.vynce.music.ui.components.BottomModal
+import com.vynce.music.ui.components.MoreOptionsSheet
 import com.vynce.music.ui.theme.VynceTheme
 import com.vynce.music.utils.formatTime
 import com.vynce.music.utils.shimmerEffect
@@ -766,3 +766,15 @@ fun RelatedTab(related: List<MediaItem>) {
         }
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+

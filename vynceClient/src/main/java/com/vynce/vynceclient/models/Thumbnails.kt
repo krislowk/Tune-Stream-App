@@ -1,4 +1,5 @@
 package com.vynce.vynceclient.models
+
 import kotlinx.serialization.Serializable
 
 @Serializable

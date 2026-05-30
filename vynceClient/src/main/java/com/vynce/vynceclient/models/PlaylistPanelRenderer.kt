@@ -19,3 +19,15 @@ data class PlaylistPanelRenderer(
         val automixPreviewVideoRenderer: AutomixPreviewVideoRenderer?,
     )
 }
+
+
+
+
+
+
+
+
+
+
+
+

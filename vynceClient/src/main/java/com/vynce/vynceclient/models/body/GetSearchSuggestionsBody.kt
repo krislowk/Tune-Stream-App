@@ -8,3 +8,15 @@ data class GetSearchSuggestionsBody(
     val context: Context,
     val input: String,
 )
+
+
+
+
+
+
+
+
+
+
+
+

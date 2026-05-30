@@ -2,6 +2,7 @@ package com.vynce.vynceclient.models.response
 
 import com.vynce.vynceclient.models.AccountInfo
 import com.vynce.vynceclient.models.Runs
+import com.vynce.vynceclient.models.Thumbnails
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -31,17 +32,17 @@ data class AccountMenuResponse(
                         @Serializable
                         data class ActiveAccountHeaderRenderer(
                             val accountName: Runs,
-                            val email: Runs? = null,
-                            val channelHandle: Runs? = null,
-                            val accountPhoto: com.vynce.vynceclient.models.ThumbnailRenderer? = null,
+                            val email: Runs?,
+                            val channelHandle: Runs?,
+                            val accountPhoto: Thumbnails,
                         ) {
-                            fun toAccountInfo() = AccountInfo(
-                                name = accountName.runs?.firstOrNull()?.text ?: "Unknown User",
-                                email = email?.runs?.firstOrNull()?.text,
-                                channelHandle = channelHandle?.runs?.firstOrNull()?.text,
-                                thumbnail = accountPhoto?.musicThumbnailRenderer?.getThumbnailUrl()
-                                    ?: accountPhoto?.croppedSquareThumbnailRenderer?.getThumbnailUrl()
-                            )
+                            fun toAccountInfo() =
+                                AccountInfo(
+                                    name = accountName.runs!!.first().text,
+                                    email = email?.runs?.first()?.text,
+                                    channelHandle = channelHandle?.runs?.first()?.text,
+                                    thumbnailUrl = accountPhoto.thumbnails.lastOrNull()?.url,
+                                )
                         }
                     }
                 }

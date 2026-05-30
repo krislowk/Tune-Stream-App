@@ -12,3 +12,15 @@ data class GetSearchSuggestionsResponse(
         val searchSuggestionsSectionRenderer: SearchSuggestionsSectionRenderer,
     )
 }
+
+
+
+
+
+
+
+
+
+
+
+

@@ -81,7 +81,7 @@
 
         <!-- 3. Efficient Service Configuration -->
         <service
-            android:name=".service.PlayerService"
+            android:name=".service.MusicService"
             android:exported="false"
             android:foregroundServiceType="mediaPlayback"
             tools:ignore="Instantiatable"> <!-- Helps with some lint warnings -->

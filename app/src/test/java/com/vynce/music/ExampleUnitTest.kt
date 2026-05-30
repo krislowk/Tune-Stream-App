@@ -1,17 +1,23 @@
 package com.vynce.music
 
-import org.junit.jupiter.api.Test
+import com.vynce.vynceclient.YouTube
+import kotlinx.coroutines.test.runTest
+import org.junit.Test
 
-import org.junit.Assert.*
+class YouTubeAccountInfoTest {
 
-/**
- * Example local unit test, which will execute on the development machine (host).
- *
- * See [testing documentation](http://d.android.com/tools/testing).
- */
-class ExampleUnitTest {
     @Test
-    fun addition_isCorrect() {
-        assertEquals(4, 2 + 2)
+    fun `accountInfo should NOT crash with null cookie`(): Unit = runTest {
+
+        try {
+            val result = YouTube.accountInfo()
+            println("SUCCESS: $result")
+        } catch (e: Throwable) {
+            println("🔥 CRASH CAUGHT")
+            e.printStackTrace()
+
+            // this forces full visibility in logs
+            throw e
+        }
     }
 }

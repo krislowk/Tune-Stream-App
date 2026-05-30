@@ -1,7 +1,6 @@
 package com.vynce.music.provider
 
-import com.vynce.vynceclient.Youtube
-import com.vynce.vynceclient.YtStream
+import com.vynce.vynceclient.YouTube
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
@@ -12,24 +11,56 @@ import javax.inject.Singleton
 class YoutubeProvider @Inject constructor(){
 
     fun getAlbum(browseId: String) = flow {
-        Youtube.album(browseId)
+        YouTube.album(browseId)
             .onSuccess { emit(it) }
             .onFailure { throw it }
     }.flowOn(Dispatchers.IO)
 
     fun getPlaylist(playlistId: String) = flow {
-        Youtube.playlist(playlistId)
+        YouTube.playlist(playlistId)
             .onSuccess { emit(it) }
             .onFailure { throw it }
     }.flowOn(Dispatchers.IO)
 
     fun getArtist(browseId: String) = flow {
-        Youtube.artist(browseId)
+        YouTube.artist(browseId)
             .onSuccess { emit(it) }
             .onFailure { throw it }
     }.flowOn(Dispatchers.IO)
 
-    suspend fun getStream(videoId: String): String? {
-        return YtStream.getVideoStream(videoId)
-    }
+    fun getHome(params: String? = null) = flow {
+        YouTube.home(params = params)
+            .onSuccess { emit(it) }
+            .onFailure { throw it }
+    }.flowOn(Dispatchers.IO)
+
+    fun getExplore() = flow {
+        YouTube.explore()
+            .onSuccess { emit(it) }
+            .onFailure { throw it }
+    }.flowOn(Dispatchers.IO)
+
+    fun search(query: String, filter: YouTube.SearchFilter) = flow {
+        YouTube.search(query, filter)
+            .onSuccess { emit(it) }
+            .onFailure { throw it }
+    }.flowOn(Dispatchers.IO)
+
+    fun getSuggestions(query: String) = flow {
+        YouTube.searchSuggestions(query)
+            .onSuccess { emit(it) }
+            .onFailure { throw it }
+    }.flowOn(Dispatchers.IO)
 }
+
+
+
+
+
+
+
+
+
+
+
+

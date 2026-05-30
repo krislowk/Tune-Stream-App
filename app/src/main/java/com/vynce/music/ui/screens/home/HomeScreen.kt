@@ -43,17 +43,21 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.vynce.music.ui.commponents.CarouselList
-import com.vynce.music.ui.commponents.QuickPicksCarousel
+import androidx.media3.common.util.UnstableApi
+import com.vynce.music.ui.components.CarouselList
+import com.vynce.music.ui.components.QuickPicksCarousel
 import com.vynce.music.ui.screens.player.PlayerViewModel
 import com.vynce.music.ui.theme.VynceTheme
 import com.vynce.music.utils.shimmerEffect
 import com.vynce.music.utils.toMediaItem
+import com.vynce.music.viewmodels.HomeUiState
+import com.vynce.music.viewmodels.HomeViewModel
 import com.vynce.vynceclient.models.AlbumItem
 import com.vynce.vynceclient.models.ArtistItem
 import com.vynce.vynceclient.models.PlaylistItem
 import com.vynce.vynceclient.models.SongItem
 
+@UnstableApi
 @Composable
 fun HomeScreen(
     playerViewModel: PlayerViewModel,
@@ -115,14 +119,14 @@ fun HomeScreen(
 
                         items(
                             items = state.data.sections,
-                            key = { it.title }
+                            key = { it.title!! }
                         ) { section ->
-                            val isQuickPick = section.title.contains("quick", ignoreCase = true) ||
-                                    section.title.contains("trending", ignoreCase = true)
+                            val isQuickPick = section.title!!.contains("quick", ignoreCase = true) ||
+                                    section.title!!.contains("trending", ignoreCase = true)
 
                             if (isQuickPick) {
                                 QuickPicksCarousel(
-                                    title = section.title,
+                                    title = section.title!!,
                                     items = section.items,
                                     onItemClick = { item ->
                                         handleItemClick(item, onItemClick, playerViewModel)
@@ -141,7 +145,7 @@ fun HomeScreen(
                                 )
                             } else {
                                 CarouselList(
-                                    title = section.title,
+                                    title = section.title!!,
                                     items = section.items,
                                     onItemClick = { item ->
                                         handleItemClick(item, onItemClick, playerViewModel)
@@ -162,6 +166,7 @@ fun HomeScreen(
     }
 }
 
+@UnstableApi
 private fun handleItemClick(
     item: Any,
     onItemClick: (String, String?) -> Unit,
@@ -384,3 +389,15 @@ fun HomeSkeleton() {
         }
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+

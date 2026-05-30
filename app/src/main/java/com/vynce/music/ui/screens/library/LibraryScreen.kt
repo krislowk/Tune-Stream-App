@@ -53,9 +53,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.media3.common.util.UnstableApi
 import coil.compose.AsyncImage
-import com.vynce.music.data.model.Song
-import com.vynce.music.ui.commponents.ListItem
+import com.vynce.music.models.Song
+import com.vynce.music.repository.constants.LibraryFilter
+import com.vynce.music.ui.components.ListItem
 import com.vynce.music.ui.screens.player.PlayerViewModel
 import com.vynce.music.ui.theme.VynceTheme
 import com.vynce.music.utils.toMediaItem
@@ -63,6 +65,7 @@ import com.vynce.vynceclient.models.Artist
 import com.vynce.vynceclient.models.SongItem
 
 
+@UnstableApi
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LibraryScreen(
@@ -80,7 +83,14 @@ fun LibraryScreen(
 
     val colors = VynceTheme.colors
 
-    val tabs = listOf("Liked", "Playlists", "Songs", "Albums", "Artists")
+    val tabs = listOf(
+        LibraryFilter.LIKED_SONGS,
+        LibraryFilter.PLAYLISTS,
+        LibraryFilter.LOCAL_SONGS,
+        LibraryFilter.LIKED_ALBUMS,
+        LibraryFilter.BOOKMARKED_ARTISTS
+    )
+    val tabNames = listOf("Liked", "Playlists", "Songs", "Albums", "Artists")
 
     Scaffold(
         topBar = {
@@ -161,9 +171,10 @@ fun LibraryScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(tabs.size) { index ->
-                    val selected = selectedTab == index
+                    val filter = tabs[index]
+                    val selected = selectedTab == filter
                     OutlinedButton(
-                        onClick = { viewModel.onTabSelected(index) },
+                        onClick = { viewModel.onTabSelected(filter) },
                         shape = RoundedCornerShape(20.dp),
                         colors = ButtonDefaults.outlinedButtonColors(
                             containerColor = if (selected) colors.primary.copy(alpha = 0.1f) else Color.Transparent,
@@ -176,7 +187,7 @@ fun LibraryScreen(
                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
                     ) {
                         Text(
-                            text = tabs[index],
+                            text = tabNames[index],
                             style = VynceTheme.typography.label.copy(
                                 fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
                             )
@@ -192,7 +203,7 @@ fun LibraryScreen(
                 // Main Library Content
                 when (val state = uiState) {
                     is LibraryUiState.Loading -> item { LoadingState() }
-                    is LibraryUiState.Empty -> item { EmptyState(tabs[selectedTab]) }
+                    is LibraryUiState.Empty -> item { EmptyState(tabNames[tabs.indexOf(selectedTab)]) }
                     is LibraryUiState.Error -> item { ErrorState(state.message) }
                     is LibraryUiState.SearchEmpty -> item {
                         Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
@@ -201,25 +212,25 @@ fun LibraryScreen(
                     }
                     is LibraryUiState.Success -> {
                         when (selectedTab) {
-                            4 -> { // Artists
+                            LibraryFilter.BOOKMARKED_ARTISTS -> {
                                 item {
                                     ArtistGrid(
-                                        songs = state.songs,
+                                        songs = state.items,
                                         onArtistClick = onArtistClick
                                     )
                                 }
                             }
-                            1, 3 -> { // Playlists or Albums
+                            LibraryFilter.PLAYLISTS, LibraryFilter.LIKED_ALBUMS -> {
                                 item {
                                     AlbumGrid(
-                                        songs = state.songs,
+                                        songs = state.items.filterIsInstance<Song>(),
                                         onAlbumClick = onAlbumClick
                                     )
                                 }
                             }
                             else -> {
-                                // Default List for Liked (0) and Songs (2)
-                                items(state.songs) { song ->
+                                // Default List for Liked and Songs
+                                items(state.items.filterIsInstance<Song>()) { song ->
                                     val songItem = SongItem(
                                         id = song.mediaId,
                                         title = song.title,
@@ -293,22 +304,22 @@ fun AlbumGrid(
 
 @Composable
 fun ArtistGrid(
-    songs: List<Song>,
+    songs: List<Any>,
     onArtistClick: (String) -> Unit = {}
 ) {
-    val artists = songs.distinctBy { it.artist }
+    val artists = songs.filterIsInstance<com.vynce.music.db.entities.Artist>().distinctBy { it.id }
     
     Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
         artists.forEach { artist ->
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { onArtistClick(artist.artist) }
+                    .clickable { onArtistClick(artist.id) }
                     .padding(vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 AsyncImage(
-                    model = artist.thumbnail,
+                    model = artist.artist.thumbnailUrl,
                     contentDescription = null,
                     modifier = Modifier
                         .size(60.dp)
@@ -318,7 +329,7 @@ fun ArtistGrid(
                 )
                 Spacer(Modifier.width(16.dp))
                 Text(
-                    text = artist.artist,
+                    text = artist.artist.name,
                     style = VynceTheme.typography.body.copy(fontWeight = FontWeight.Medium),
                     modifier = Modifier.weight(1f)
                 )
@@ -370,3 +381,15 @@ fun ErrorState(message: String) {
         Text("Error: $message", color = Color.Red)
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+

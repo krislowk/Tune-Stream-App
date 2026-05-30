@@ -25,3 +25,15 @@ data class BrowseResult(
             )
         } else this
 }
+
+
+
+
+
+
+
+
+
+
+
+

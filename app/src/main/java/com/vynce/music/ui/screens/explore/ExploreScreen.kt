@@ -36,8 +36,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import com.vynce.music.ui.commponents.CarouselList
-import com.vynce.music.ui.commponents.SectionHeader
+import com.vynce.music.ui.components.CarouselList
+import com.vynce.music.ui.components.SectionHeader
 import com.vynce.music.ui.theme.VynceTheme
 import com.vynce.vynceclient.models.AlbumItem
 import com.vynce.vynceclient.pages.MoodAndGenres
@@ -145,3 +145,15 @@ fun MoodCard(mood: MoodAndGenres.Item) {
         )
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+

@@ -36,3 +36,15 @@ sealed class Route<T : Any>(
         val all = listOf(Home, Explore, Library, Settings)
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+

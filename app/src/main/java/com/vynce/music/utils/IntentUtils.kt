@@ -13,3 +13,15 @@ fun shareText(context: Context, text: String) {
     val shareIntent = Intent.createChooser(sendIntent, null)
     context.startActivity(shareIntent)
 }
+
+
+
+
+
+
+
+
+
+
+
+

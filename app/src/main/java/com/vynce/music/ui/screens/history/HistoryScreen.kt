@@ -26,7 +26,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import com.vynce.music.ui.commponents.ListItem
+import com.vynce.music.ui.components.ListItem
 import com.vynce.music.ui.screens.player.PlayerViewModel
 import com.vynce.music.ui.theme.VynceTheme
 import com.vynce.music.utils.toMediaItem
@@ -114,3 +114,15 @@ fun HistoryScreen(
         }
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+

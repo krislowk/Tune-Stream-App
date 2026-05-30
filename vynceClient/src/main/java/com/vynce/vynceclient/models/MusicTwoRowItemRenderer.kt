@@ -3,7 +3,10 @@ package com.vynce.vynceclient.models
 import com.vynce.vynceclient.models.BrowseEndpoint.BrowseEndpointContextSupportedConfigs.BrowseEndpointContextMusicConfig.Companion.MUSIC_PAGE_TYPE_ALBUM
 import com.vynce.vynceclient.models.BrowseEndpoint.BrowseEndpointContextSupportedConfigs.BrowseEndpointContextMusicConfig.Companion.MUSIC_PAGE_TYPE_ARTIST
 import com.vynce.vynceclient.models.BrowseEndpoint.BrowseEndpointContextSupportedConfigs.BrowseEndpointContextMusicConfig.Companion.MUSIC_PAGE_TYPE_AUDIOBOOK
+import com.vynce.vynceclient.models.BrowseEndpoint.BrowseEndpointContextSupportedConfigs.BrowseEndpointContextMusicConfig.Companion.MUSIC_PAGE_TYPE_NON_MUSIC_AUDIO_TRACK_PAGE
 import com.vynce.vynceclient.models.BrowseEndpoint.BrowseEndpointContextSupportedConfigs.BrowseEndpointContextMusicConfig.Companion.MUSIC_PAGE_TYPE_PLAYLIST
+import com.vynce.vynceclient.models.BrowseEndpoint.BrowseEndpointContextSupportedConfigs.BrowseEndpointContextMusicConfig.Companion.MUSIC_PAGE_TYPE_PODCAST_SHOW_DETAIL_PAGE
+import com.vynce.vynceclient.models.BrowseEndpoint.BrowseEndpointContextSupportedConfigs.BrowseEndpointContextMusicConfig.Companion.MUSIC_PAGE_TYPE_USER_CHANNEL
 import kotlinx.serialization.Serializable
 
 /**
@@ -24,10 +27,72 @@ data class MusicTwoRowItemRenderer(
     val isSong: Boolean
         get() = navigationEndpoint.endpoint is WatchEndpoint
     val isPlaylist: Boolean
-        get() = navigationEndpoint.browseEndpoint?.browseEndpointContextSupportedConfigs?.browseEndpointContextMusicConfig?.pageType == MUSIC_PAGE_TYPE_PLAYLIST
+        get() =
+            navigationEndpoint.browseEndpoint
+                ?.browseEndpointContextSupportedConfigs
+                ?.browseEndpointContextMusicConfig
+                ?.pageType ==
+                    MUSIC_PAGE_TYPE_PLAYLIST
     val isAlbum: Boolean
-        get() = navigationEndpoint.browseEndpoint?.browseEndpointContextSupportedConfigs?.browseEndpointContextMusicConfig?.pageType == MUSIC_PAGE_TYPE_ALBUM ||
-                navigationEndpoint.browseEndpoint?.browseEndpointContextSupportedConfigs?.browseEndpointContextMusicConfig?.pageType == MUSIC_PAGE_TYPE_AUDIOBOOK
+        get() =
+            navigationEndpoint.browseEndpoint
+                ?.browseEndpointContextSupportedConfigs
+                ?.browseEndpointContextMusicConfig
+                ?.pageType ==
+                    MUSIC_PAGE_TYPE_ALBUM ||
+                    navigationEndpoint.browseEndpoint
+                        ?.browseEndpointContextSupportedConfigs
+                        ?.browseEndpointContextMusicConfig
+                        ?.pageType ==
+                    MUSIC_PAGE_TYPE_AUDIOBOOK
     val isArtist: Boolean
-        get() = navigationEndpoint.browseEndpoint?.browseEndpointContextSupportedConfigs?.browseEndpointContextMusicConfig?.pageType == MUSIC_PAGE_TYPE_ARTIST
+        get() =
+            navigationEndpoint.browseEndpoint
+                ?.browseEndpointContextSupportedConfigs
+                ?.browseEndpointContextMusicConfig
+                ?.pageType ==
+                    MUSIC_PAGE_TYPE_ARTIST
+    val isPodcast: Boolean
+        get() =
+            navigationEndpoint.browseEndpoint
+                ?.browseEndpointContextSupportedConfigs
+                ?.browseEndpointContextMusicConfig
+                ?.pageType ==
+                    MUSIC_PAGE_TYPE_PODCAST_SHOW_DETAIL_PAGE
+    val isUserChannel: Boolean
+        get() =
+            navigationEndpoint.browseEndpoint
+                ?.browseEndpointContextSupportedConfigs
+                ?.browseEndpointContextMusicConfig
+                ?.pageType ==
+                    MUSIC_PAGE_TYPE_USER_CHANNEL
+    val isEpisode: Boolean
+        get() =
+            navigationEndpoint.browseEndpoint
+                ?.browseEndpointContextSupportedConfigs
+                ?.browseEndpointContextMusicConfig
+                ?.pageType ==
+                    MUSIC_PAGE_TYPE_NON_MUSIC_AUDIO_TRACK_PAGE
+
+    val musicVideoType: String?
+        get() =
+            thumbnailOverlay
+                ?.musicItemThumbnailOverlayRenderer
+                ?.content
+                ?.musicPlayButtonRenderer
+                ?.playNavigationEndpoint
+                ?.musicVideoType
+                ?: navigationEndpoint.musicVideoType
 }
+
+
+
+
+
+
+
+
+
+
+
+

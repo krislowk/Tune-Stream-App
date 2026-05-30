@@ -1,14 +1,28 @@
 package com.vynce.music
 
 import android.app.Application
-import com.gravatar.Gravatar
+import com.vynce.music.utils.cipher.CipherDeobfuscator
+import com.vynce.vynceclient.NewPipeExtractor
+import com.vynce.vynceclient.YouTube
 import dagger.hilt.android.HiltAndroidApp
 
 @HiltAndroidApp
 class VynceApplication : Application() {
     override fun onCreate() {
         super.onCreate()
-        Gravatar.apiKey(BuildConfig.GRAVATAR_API_KEY)
-            .context(this) // Use 'this' for the application context.
+        CipherDeobfuscator.initialize(this)
+        NewPipeExtractor.init(YouTube.proxy, YouTube.proxyAuth)
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+

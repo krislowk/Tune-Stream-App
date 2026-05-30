@@ -4,9 +4,9 @@ import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonNames
 
-@ExperimentalSerializationApi
+@OptIn(ExperimentalSerializationApi::class)
 @Serializable
-data class Continuation @OptIn(ExperimentalSerializationApi::class) constructor(
+data class Continuation(
     @JsonNames("nextContinuationData", "nextRadioContinuationData")
     val nextContinuationData: NextContinuationData?,
 ) {
@@ -15,3 +15,18 @@ data class Continuation @OptIn(ExperimentalSerializationApi::class) constructor(
         val continuation: String,
     )
 }
+
+fun List<Continuation>.getContinuation() =
+    firstOrNull()?.nextContinuationData?.continuation
+
+
+
+
+
+
+
+
+
+
+
+

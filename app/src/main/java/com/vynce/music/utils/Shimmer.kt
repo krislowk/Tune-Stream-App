@@ -42,3 +42,15 @@ fun Modifier.shimmerEffect(enabled: Boolean = true): Modifier = composed {
 
     background(brush)
 }
+
+
+
+
+
+
+
+
+
+
+
+

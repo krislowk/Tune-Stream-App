@@ -1,12 +1,13 @@
-@file:OptIn(ExperimentalSerializationApi::class)
-
 package com.vynce.vynceclient.models
 
 import com.vynce.vynceclient.models.BrowseEndpoint.BrowseEndpointContextSupportedConfigs.BrowseEndpointContextMusicConfig.Companion.MUSIC_PAGE_TYPE_ALBUM
 import com.vynce.vynceclient.models.BrowseEndpoint.BrowseEndpointContextSupportedConfigs.BrowseEndpointContextMusicConfig.Companion.MUSIC_PAGE_TYPE_ARTIST
 import com.vynce.vynceclient.models.BrowseEndpoint.BrowseEndpointContextSupportedConfigs.BrowseEndpointContextMusicConfig.Companion.MUSIC_PAGE_TYPE_AUDIOBOOK
+import com.vynce.vynceclient.models.BrowseEndpoint.BrowseEndpointContextSupportedConfigs.BrowseEndpointContextMusicConfig.Companion.MUSIC_PAGE_TYPE_LIBRARY_ARTIST
+import com.vynce.vynceclient.models.BrowseEndpoint.BrowseEndpointContextSupportedConfigs.BrowseEndpointContextMusicConfig.Companion.MUSIC_PAGE_TYPE_NON_MUSIC_AUDIO_TRACK_PAGE
 import com.vynce.vynceclient.models.BrowseEndpoint.BrowseEndpointContextSupportedConfigs.BrowseEndpointContextMusicConfig.Companion.MUSIC_PAGE_TYPE_PLAYLIST
-import kotlinx.serialization.ExperimentalSerializationApi
+import com.vynce.vynceclient.models.BrowseEndpoint.BrowseEndpointContextSupportedConfigs.BrowseEndpointContextMusicConfig.Companion.MUSIC_PAGE_TYPE_PODCAST_SHOW_DETAIL_PAGE
+import com.vynce.vynceclient.models.BrowseEndpoint.BrowseEndpointContextSupportedConfigs.BrowseEndpointContextMusicConfig.Companion.MUSIC_PAGE_TYPE_USER_CHANNEL
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonNames
 
@@ -35,6 +36,56 @@ data class MusicResponsiveListItemRenderer(
                 navigationEndpoint?.browseEndpoint?.browseEndpointContextSupportedConfigs?.browseEndpointContextMusicConfig?.pageType == MUSIC_PAGE_TYPE_AUDIOBOOK
     val isArtist: Boolean
         get() = navigationEndpoint?.browseEndpoint?.browseEndpointContextSupportedConfigs?.browseEndpointContextMusicConfig?.pageType == MUSIC_PAGE_TYPE_ARTIST
+                || navigationEndpoint?.browseEndpoint?.browseEndpointContextSupportedConfigs?.browseEndpointContextMusicConfig?.pageType == MUSIC_PAGE_TYPE_LIBRARY_ARTIST
+    val isPodcast: Boolean
+        get() = navigationEndpoint?.browseEndpoint?.browseEndpointContextSupportedConfigs?.browseEndpointContextMusicConfig?.pageType == MUSIC_PAGE_TYPE_PODCAST_SHOW_DETAIL_PAGE
+    val isUserChannel: Boolean
+        get() = navigationEndpoint?.browseEndpoint?.browseEndpointContextSupportedConfigs?.browseEndpointContextMusicConfig?.pageType == MUSIC_PAGE_TYPE_USER_CHANNEL
+    val isEpisode: Boolean
+        get() {
+            // Method 1: Check browse endpoint (for episode detail pages)
+            if (navigationEndpoint?.browseEndpoint?.browseEndpointContextSupportedConfigs?.browseEndpointContextMusicConfig?.pageType == MUSIC_PAGE_TYPE_NON_MUSIC_AUDIO_TRACK_PAGE) {
+                return true
+            }
+            // Method 2: Check if first subtitle text is "Episode" (for search results)
+            val firstSubtitleText = flexColumns.getOrNull(1)
+                ?.musicResponsiveListItemFlexColumnRenderer
+                ?.text?.runs?.firstOrNull()?.text
+            if (firstSubtitleText == "Episode") {
+                return true
+            }
+            // Method 3: Check for podcast link in subtitle (backup detection).
+            //
+            // Episode items that appear in filtered search results may have:
+            //   - navigationEndpoint.watchEndpoint  (playable) → isSong=true would wrongly match
+            //   - playlistItemData = null            (not in a playlist context)
+            //   - subtitle: [date · podcast-name]   (podcast-name links to PODCAST_SHOW_DETAIL_PAGE)
+            //
+            // The presence of a PODCAST_SHOW_DETAIL_PAGE browse link in the subtitle is unique to
+            // episodes — regular songs never carry such a link.  We accept either a playlistItemData
+            // videoId OR a direct watchEndpoint videoId to handle both playlist and standalone contexts.
+            val hasPodcastLink = flexColumns.getOrNull(1)
+                ?.musicResponsiveListItemFlexColumnRenderer
+                ?.text?.runs?.any { run ->
+                    run.navigationEndpoint?.browseEndpoint
+                        ?.browseEndpointContextSupportedConfigs
+                        ?.browseEndpointContextMusicConfig
+                        ?.pageType == MUSIC_PAGE_TYPE_PODCAST_SHOW_DETAIL_PAGE
+                } == true
+            val hasVideoId = playlistItemData?.videoId != null ||
+                navigationEndpoint?.watchEndpoint?.videoId != null
+            return hasPodcastLink && hasVideoId
+        }
+
+    val musicVideoType: String?
+        get() =
+            overlay
+                ?.musicItemThumbnailOverlayRenderer
+                ?.content
+                ?.musicPlayButtonRenderer
+                ?.playNavigationEndpoint
+                ?.musicVideoType
+                ?: navigationEndpoint?.musicVideoType
 
     @Serializable
     data class FlexColumn(
@@ -73,3 +124,15 @@ data class MusicResponsiveListItemRenderer(
         }
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+

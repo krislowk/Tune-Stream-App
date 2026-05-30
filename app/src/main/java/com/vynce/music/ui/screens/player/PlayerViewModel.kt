@@ -7,16 +7,16 @@ import androidx.lifecycle.viewModelScope
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.MoreExecutors
-import com.google.firebase.crashlytics.FirebaseCrashlytics
-import com.vynce.music.data.model.Song
-import com.vynce.music.data.repository.SongRepository
-import com.vynce.music.service.PlayerService
+import com.vynce.music.models.Song
+import com.vynce.music.repository.SongRepository
+import com.vynce.music.service.MusicService
 import com.vynce.music.utils.toMediaItem
-import com.vynce.vynceclient.Youtube
+import com.vynce.vynceclient.YouTube
 import com.vynce.vynceclient.models.WatchEndpoint
 import com.vynce.vynceclient.pages.NextResult
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -30,6 +30,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
+import kotlin.time.Duration.Companion.milliseconds
 
 data class PlayerUiState(
     val currentTrack: MediaItem? = null,
@@ -47,6 +48,7 @@ data class PlayerUiState(
     val isAutoplayEnabled: Boolean = true
 )
 
+@UnstableApi
 @HiltViewModel
 class PlayerViewModel @Inject constructor(
     private val application: Application,
@@ -55,7 +57,7 @@ class PlayerViewModel @Inject constructor(
 
     private var controller: MediaController? = null
     private val controllerFuture: ListenableFuture<MediaController> by lazy {
-        val token = SessionToken(application, ComponentName(application, PlayerService::class.java))
+        val token = SessionToken(application, ComponentName(application, MusicService::class.java))
         MediaController.Builder(application, token).buildAsync()
     }
     private val upNextBuffer = ArrayDeque<MediaItem>()
@@ -81,7 +83,7 @@ class PlayerViewModel @Inject constructor(
                     syncState()
                 }
             } catch (e: Exception) {
-                FirebaseCrashlytics.getInstance().recordException(e)
+                e.printStackTrace()
             }
         }, MoreExecutors.directExecutor())
     }
@@ -135,7 +137,7 @@ class PlayerViewModel @Inject constructor(
                     _uiState.update { it.copy(currentPosition = p.currentPosition) }
                 }
             }
-            delay(500)
+            delay(500.milliseconds)
         }
     }
 
@@ -148,7 +150,7 @@ class PlayerViewModel @Inject constructor(
             _uiState.update { it.copy(isFetchingMetadata = true) }
             try {
                 val result = withContext(Dispatchers.IO) {
-                    Youtube.next(WatchEndpoint(videoId)).getOrNull()
+                    YouTube.next(WatchEndpoint(videoId)).getOrNull()
                 } ?: run {
                     _uiState.update { it.copy(isFetchingMetadata = false) }
                     return@launch
@@ -197,10 +199,7 @@ class PlayerViewModel @Inject constructor(
 
             } catch (e: Exception) {
                 if (e !is CancellationException) {
-                    FirebaseCrashlytics.getInstance().apply {
-                        setCustomKey("videoId", videoId)
-                        recordException(e)
-                    }
+                    e.printStackTrace()
                 }
                 _uiState.update { it.copy(isFetchingMetadata = false) }
             }
@@ -209,14 +208,14 @@ class PlayerViewModel @Inject constructor(
 
     private suspend fun loadLyrics(result: NextResult) {
         val lyricsText = withContext(Dispatchers.IO) {
-            result.lyricsEndpoint?.let { Youtube.lyrics(it).getOrNull() }
+            result.lyricsEndpoint?.let { YouTube.lyrics(it).getOrNull() }
         }
         _lyrics.value = lyricsText ?: "Lyrics not available."
     }
 
     private suspend fun loadRelated(result: NextResult) {
         val related = withContext(Dispatchers.IO) {
-            result.relatedEndpoint?.let { Youtube.related(it).getOrNull() }
+            result.relatedEndpoint?.let { YouTube.related(it).getOrNull() }
         }
         _uiState.update { state ->
             state.copy(relatedSongs = related?.songs?.map { it.toMediaItem() } ?: emptyList())
@@ -291,13 +290,13 @@ class PlayerViewModel @Inject constructor(
 
     fun playQueue(endpoint: WatchEndpoint) {
         viewModelScope.launch {
-            Youtube.next(endpoint).onSuccess { result ->
+            YouTube.next(endpoint).onSuccess { result ->
                 val mediaItems = result.items.map { it.toMediaItem() }
                 if (mediaItems.isNotEmpty()) {
                     playAll(mediaItems)
                 }
             }.onFailure {
-                FirebaseCrashlytics.getInstance().recordException(it)
+                it.printStackTrace()
             }
         }
     }
@@ -348,3 +347,15 @@ class PlayerViewModel @Inject constructor(
         super.onCleared()
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+

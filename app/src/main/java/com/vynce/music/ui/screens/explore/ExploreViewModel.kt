@@ -2,18 +2,20 @@ package com.vynce.music.ui.screens.explore
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.firebase.crashlytics.FirebaseCrashlytics
-import com.vynce.vynceclient.Youtube
+import com.vynce.music.provider.YoutubeProvider
 import com.vynce.vynceclient.pages.ExplorePage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
-class ExploreViewModel @Inject constructor() : ViewModel() {
+class ExploreViewModel @Inject constructor(
+    private val youtubeProvider: YoutubeProvider
+) : ViewModel() {
 
     private val _exploreData = MutableStateFlow<ExplorePage?>(null)
     val exploreData: StateFlow<ExplorePage?> = _exploreData.asStateFlow()
@@ -28,15 +30,27 @@ class ExploreViewModel @Inject constructor() : ViewModel() {
     fun fetchExploreData() {
         viewModelScope.launch {
             _isLoading.value = true
-            Youtube.explore()
-                .onSuccess { 
+            youtubeProvider.getExplore()
+                .catch { e ->
+                    _isLoading.value = false
+                    e.printStackTrace()
+                }
+                .collect { 
                     _exploreData.value = it 
                     _isLoading.value = false
-                }
-                .onFailure {
-                    _isLoading.value = false
-                    FirebaseCrashlytics.getInstance().recordException(it)
                 }
         }
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+

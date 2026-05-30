@@ -2,10 +2,11 @@ package com.vynce.vynceclient.models.response
 
 import com.vynce.vynceclient.models.ResponseContext
 import com.vynce.vynceclient.models.Thumbnails
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
- * PlayerResponse with [import com.vynce.vynceclient.models.YouTubeClient.ANDROID_MUSIC] client
+ * PlayerResponse with [com.vynce.vynceclient.models.YouTubeClient.WEB_REMIX] client
  */
 @Serializable
 data class PlayerResponse(
@@ -14,6 +15,8 @@ data class PlayerResponse(
     val playerConfig: PlayerConfig?,
     val streamingData: StreamingData?,
     val videoDetails: VideoDetails?,
+    @SerialName("playbackTracking")
+    val playbackTracking: PlaybackTracking?,
 ) {
     @Serializable
     data class PlayabilityStatus(
@@ -57,21 +60,71 @@ data class PlayerResponse(
             val audioChannels: Int?,
             val loudnessDb: Double?,
             val lastModified: Long?,
+            val signatureCipher: String?,
+            val cipher: String?,
+            val audioTrack: AudioTrack?
         ) {
             val isAudio: Boolean
                 get() = width == null
+            val isOriginal: Boolean
+                get() = audioTrack?.isAutoDubbed == null
+
+            @Serializable
+            data class AudioTrack(
+                val displayName: String?,
+                val id: String?,
+                val isAutoDubbed: Boolean?,
+            )
         }
     }
 
     @Serializable
     data class VideoDetails(
         val videoId: String,
-        val title: String,
-        val author: String,
+        val title: String?,
+        val author: String?,
         val channelId: String,
         val lengthSeconds: String,
         val musicVideoType: String?,
-        val viewCount: String,
+        val viewCount: String?,
         val thumbnail: Thumbnails,
     )
+
+    @Serializable
+    data class PlaybackTracking(
+        @SerialName("videostatsPlaybackUrl")
+        val videostatsPlaybackUrl: VideostatsPlaybackUrl?,
+        @SerialName("videostatsWatchtimeUrl")
+        val videostatsWatchtimeUrl: VideostatsWatchtimeUrl?,
+        @SerialName("atrUrl")
+        val atrUrl: AtrUrl?,
+    ) {
+        @Serializable
+        data class VideostatsPlaybackUrl(
+            @SerialName("baseUrl")
+            val baseUrl: String?,
+        )
+        @Serializable
+        data class VideostatsWatchtimeUrl(
+            @SerialName("baseUrl")
+            val baseUrl: String?,
+        )
+        @Serializable
+        data class AtrUrl(
+            @SerialName("baseUrl")
+            val baseUrl: String?,
+        )
+    }
 }
+
+
+
+
+
+
+
+
+
+
+
+

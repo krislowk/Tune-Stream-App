@@ -6,3 +6,15 @@ import kotlinx.serialization.Serializable
 data class Icon(
     val iconType: String,
 )
+
+
+
+
+
+
+
+
+
+
+
+

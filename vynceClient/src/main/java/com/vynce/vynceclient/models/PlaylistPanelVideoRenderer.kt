@@ -17,3 +17,15 @@ data class PlaylistPanelVideoRenderer(
     val menu: Menu?,
     val navigationEndpoint: NavigationEndpoint,
 )
+
+
+
+
+
+
+
+
+
+
+
+

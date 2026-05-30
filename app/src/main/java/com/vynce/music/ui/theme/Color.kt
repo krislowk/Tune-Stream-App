@@ -23,3 +23,15 @@ val GlassBorder = Color(0x1AFFFFFF)
 // Additional Accents
 val SoftPurple = Color(0xFFE1BEE7)
 val DeepPurple = Color(0xFF3700B3)
+
+
+
+
+
+
+
+
+
+
+
+

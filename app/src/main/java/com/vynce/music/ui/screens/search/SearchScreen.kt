@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -43,26 +42,25 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import com.vynce.music.ui.commponents.ListItem
-import com.vynce.music.ui.commponents.MoreOptionsSheet
+import androidx.media3.common.util.UnstableApi
+import com.vynce.music.ui.components.ListItem
+import com.vynce.music.ui.components.MoreOptionsSheet
 import com.vynce.music.ui.screens.player.PlayerViewModel
 import com.vynce.music.ui.theme.VynceTheme
 import com.vynce.music.utils.shareText
 import com.vynce.music.utils.toMediaItem
-import com.vynce.vynceclient.Youtube
+import com.vynce.vynceclient.YouTube
 import com.vynce.vynceclient.models.AlbumItem
 import com.vynce.vynceclient.models.ArtistItem
 import com.vynce.vynceclient.models.PlaylistItem
 import com.vynce.vynceclient.models.SongItem
 import com.vynce.vynceclient.models.YTItem
 
+@UnstableApi
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchScreen(
@@ -87,12 +85,12 @@ fun SearchScreen(
     val colors = VynceTheme.colors
 
     val filters = listOf(
-        "Songs" to Youtube.SearchFilter.FILTER_SONG,
-        "Videos" to Youtube.SearchFilter.FILTER_VIDEO,
-        "Albums" to Youtube.SearchFilter.FILTER_ALBUM,
-        "Artists" to Youtube.SearchFilter.FILTER_ARTIST,
-        "Featured Playlists" to Youtube.SearchFilter.FILTER_FEATURED_PLAYLIST,
-        "Community Playlists" to Youtube.SearchFilter.FILTER_COMMUNITY_PLAYLIST
+        "Songs" to YouTube.SearchFilter.FILTER_SONG,
+        "Videos" to YouTube.SearchFilter.FILTER_VIDEO,
+        "Albums" to YouTube.SearchFilter.FILTER_ALBUM,
+        "Artists" to YouTube.SearchFilter.FILTER_ARTIST,
+        "Featured Playlists" to YouTube.SearchFilter.FILTER_FEATURED_PLAYLIST,
+        "Community Playlists" to YouTube.SearchFilter.FILTER_COMMUNITY_PLAYLIST
     )
 
     Scaffold(
@@ -223,6 +221,7 @@ fun SearchScreen(
                                         is AlbumItem -> onItemClick("album", item.browseId)
                                         is ArtistItem -> onItemClick("artist", item.id)
                                         is PlaylistItem -> onItemClick("playlist", item.id)
+                                        else -> {}
                                     }
                                 },
                                 onMoreClick = if (item is SongItem) {
@@ -295,3 +294,15 @@ fun SuggestionItem(suggestion: String, onClick: () -> Unit) {
         )
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+

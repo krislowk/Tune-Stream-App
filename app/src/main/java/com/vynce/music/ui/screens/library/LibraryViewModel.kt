@@ -2,11 +2,13 @@ package com.vynce.music.ui.screens.library
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.vynce.music.data.model.Song
-import com.vynce.music.data.repository.SongRepository
-import com.vynce.music.data.repository.UserRepository
+import com.vynce.music.models.Song
+import com.vynce.music.repository.SongRepository
+import com.vynce.music.repository.UserRepository
+import com.vynce.music.repository.constants.LibraryFilter
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -39,8 +41,11 @@ class LibraryViewModel @Inject constructor(
     private val _searchQuery = MutableStateFlow("")
     val searchQuery = _searchQuery.asStateFlow()
 
-    private val _selectedTab = MutableStateFlow(0)
+    private val _selectedTab = MutableStateFlow(LibraryFilter.LIKED_SONGS)
     val selectedTab = _selectedTab.asStateFlow()
+
+    private val _isScanning = MutableStateFlow(false)
+    val isScanning = _isScanning.asStateFlow()
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val uiState: StateFlow<LibraryUiState> = combine(
@@ -49,31 +54,40 @@ class LibraryViewModel @Inject constructor(
     ) { tab, query ->
         tab to query
     }.flatMapLatest { (tab, query) ->
-        val songsFlow = when (tab) {
-            0 -> songRepository.getLikedSongs() // Liked
-            2 -> songRepository.getLocalSongs() // Songs (Local)
-            else -> songRepository.getAllSongs() // Playlists, Albums, Artists (Filtered in Screen)
+        val itemsFlow: Flow<List<Any>> = when (tab) {
+            LibraryFilter.LIKED_SONGS -> songRepository.getLikedSongs()
+            LibraryFilter.PLAYLISTS -> songRepository.getPlaylists()
+            LibraryFilter.LOCAL_SONGS -> songRepository.getLocalSongs()
+            LibraryFilter.LIKED_ALBUMS -> songRepository.getLikedAlbums()
+            LibraryFilter.BOOKMARKED_ARTISTS -> songRepository.getBookmarkedArtists()
+            LibraryFilter.ALL_SONGS -> songRepository.getAllSongs()
         }
         
-        songsFlow.map { songs ->
-            if (songs.isEmpty() && query.isBlank()) {
+        itemsFlow.map { items: List<Any> ->
+            if (items.isEmpty() && query.isBlank()) {
                 LibraryUiState.Empty
             } else {
-                val filteredSongs = if (query.isBlank()) {
-                    songs
+                val filteredItems = if (query.isBlank()) {
+                    items
                 } else {
-                    songs.filter {
-                        it.title.contains(query, ignoreCase = true) ||
-                                it.artist.contains(query, ignoreCase = true)
+                    items.filter { item: Any ->
+                        when (item) {
+                            is Song -> item.title.contains(query, ignoreCase = true) ||
+                                    item.artist.contains(query, ignoreCase = true)
+                            is com.vynce.music.db.entities.Playlist -> item.playlist.name.contains(query, ignoreCase = true)
+                            is com.vynce.music.db.entities.Album -> item.album.title.contains(query, ignoreCase = true)
+                            is com.vynce.music.db.entities.Artist -> item.artist.name.contains(query, ignoreCase = true)
+                            else -> false
+                        }
                     }
                 }
 
-                if (filteredSongs.isEmpty() && query.isNotBlank()) {
+                if (filteredItems.isEmpty() && query.isNotBlank()) {
                     LibraryUiState.SearchEmpty
-                } else if (filteredSongs.isEmpty()) {
+                } else if (filteredItems.isEmpty()) {
                     LibraryUiState.Empty
                 } else {
-                    LibraryUiState.Success(filteredSongs)
+                    LibraryUiState.Success(filteredItems)
                 }
             }
         }
@@ -87,8 +101,8 @@ class LibraryViewModel @Inject constructor(
         _searchQuery.value = query
     }
 
-    fun onTabSelected(index: Int) {
-        _selectedTab.value = index
+    fun onTabSelected(filter: LibraryFilter) {
+        _selectedTab.value = filter
     }
 
     fun toggleLike(song: Song) {
@@ -96,12 +110,36 @@ class LibraryViewModel @Inject constructor(
             songRepository.toggleLike(song)
         }
     }
+
+    fun scanLocalSongs() {
+        viewModelScope.launch {
+            _isScanning.value = true
+            try {
+                songRepository.scanLocalSongs()
+            } catch (e: Exception) {
+                // Handle or log error
+            } finally {
+                _isScanning.value = false
+            }
+        }
+    }
 }
 
 sealed class LibraryUiState {
     object Loading : LibraryUiState()
-    data class Success(val songs: List<Song>) : LibraryUiState()
+    data class Success(val items: List<Any>) : LibraryUiState()
     object Empty : LibraryUiState()
     object SearchEmpty : LibraryUiState()
     data class Error(val message: String) : LibraryUiState()
 }
+
+
+
+
+
+
+
+
+
+
+

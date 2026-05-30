@@ -20,13 +20,12 @@ dependencyResolutionManagement {
         google()
         mavenCentral()
         maven { url = uri("https://a8c-libs.s3.amazonaws.com/android") }
-        maven { url = uri("https://jitpack.io")
-            content { includeModule("com.github.yalantis", "ucrop") }
+        maven {
+            url = uri("https://jitpack.io")
         }
     }
 }
 
 rootProject.name = "vynce"
 include(":app")
-include(":server")
 include(":vynceClient")
