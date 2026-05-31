@@ -9,6 +9,7 @@ data class MusicResponsiveHeaderRenderer(
     val title: Runs,
     val subtitle: Runs,
     val secondSubtitle: Runs?,
+    val subtitleBadges: List<Badges>? = null,
     val straplineTextOne: Runs?,
     val description: DescriptionWrapper? = null,
     val facepile: FacepileWrapper? = null,

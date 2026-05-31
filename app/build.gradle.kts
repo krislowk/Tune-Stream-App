@@ -92,6 +92,7 @@ dependencies {
     implementation(libs.androidx.material3)
     debugImplementation(libs.androidx.ui.tooling)
     ksp(libs.hilt.compiler)
+    implementation(libs.androidx.compose.foundation)
 
     implementation(libs.ktor.client.core)
     implementation(libs.ktor.client.cio)

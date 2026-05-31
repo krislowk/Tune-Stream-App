@@ -17,6 +17,7 @@ import com.vynce.vynceclient.models.SectionListRenderer
 import com.vynce.vynceclient.models.SongItem
 import com.vynce.vynceclient.models.WatchEndpoint
 import com.vynce.vynceclient.models.YTItem
+import com.vynce.vynceclient.models.clean
 import com.vynce.vynceclient.models.getItems
 import com.vynce.vynceclient.models.splitArtistsByConjunction
 import com.vynce.vynceclient.models.splitBySeparator
@@ -70,13 +71,15 @@ data class ArtistPage(
         }
 
         private fun fromMusicResponsiveListItemRenderer(renderer: MusicResponsiveListItemRenderer): SongItem? {
-            val artistRuns = renderer.flexColumns
+            val secondaryLine = renderer.flexColumns
                 .getOrNull(1)
                 ?.musicResponsiveListItemFlexColumnRenderer
                 ?.text
                 ?.runs
                 ?.splitBySeparator()
-                ?.getOrNull(0)
+                ?.clean() ?: return null
+
+            val artistRuns = secondaryLine.getOrNull(0)
                 ?.splitArtistsByConjunction()
                 ?.filter { it.text.isNotBlank() && it.text != "&" && it.text != "," }
                 ?.map { run ->

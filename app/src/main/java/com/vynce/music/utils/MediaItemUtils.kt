@@ -15,9 +15,11 @@ fun SongItem.toMediaItem(): MediaItem {
         putString("album_id", album?.id)
         putString("artist_id", artists.firstOrNull()?.id)
         putString("share_link", shareLink)
+        putInt("lyrics_offset", 0)
     }
     return MediaItem.Builder()
         .setMediaId(id)
+        .setUri(android.net.Uri.EMPTY)
         .setMediaMetadata(
             MediaMetadata.Builder()
                 .setTitle(title)
@@ -30,9 +32,12 @@ fun SongItem.toMediaItem(): MediaItem {
 }
 
 fun Song.toMediaItem(): MediaItem {
+    val extras = Bundle().apply {
+        putInt("lyrics_offset", lyricsOffset)
+    }
     return MediaItem.Builder()
         .setMediaId(mediaId)
-        .setUri(if (!isYoutube && contentUri.isNotEmpty()) contentUri.toUri() else null)
+        .setUri(if (!isYoutube && contentUri.isNotEmpty()) contentUri.toUri() else android.net.Uri.EMPTY)
         .setMediaMetadata(
             MediaMetadata.Builder()
                 .setTitle(title)
@@ -41,6 +46,7 @@ fun Song.toMediaItem(): MediaItem {
                 .setArtworkUri(thumbnail.toUri())
                 .setIsBrowsable(false)
                 .setIsPlayable(true)
+                .setExtras(extras)
                 .build()
         )
         .build()

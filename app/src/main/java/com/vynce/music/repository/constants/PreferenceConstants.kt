@@ -43,6 +43,11 @@ object PreferenceConstants {
     val SHOW_LYRICS = booleanPreferencesKey("show_lyrics")
     val LYRICS_TEXT_SIZE = floatPreferencesKey("lyrics_text_size")
     val SHOW_LYRICS_LOCKSCREEN = booleanPreferencesKey("show_lyrics_lockscreen")
+    val LYRICS_FOLDER = stringPreferencesKey("lyrics_folder")
+    
+    // Lyrics Providers
+    val LYRICS_PROVIDER_ORDER = stringPreferencesKey("lyrics_provider_order")
+    val ENABLE_LYRICS_PLUS = booleanPreferencesKey("enable_lyrics_plus")
 
     // Privacy
     val ENABLE_HISTORY = booleanPreferencesKey("enable_history")
@@ -58,6 +63,9 @@ object PreferenceConstants {
     
     // Quick Picks
     val QUICK_PICKS = stringPreferencesKey("quick_picks")
+
+    // Home Cache
+    val HOME_PAGE_CACHE = stringPreferencesKey("home_page_cache")
 
     // Sync
     val LAST_FULL_SYNC = longPreferencesKey("last_full_sync")
@@ -84,7 +92,9 @@ enum class LibraryFilter {
     LOCAL_SONGS,
     LIKED_ALBUMS,
     BOOKMARKED_ARTISTS,
-    ALL_SONGS
+    PODCASTS,
+    ALL_SONGS,
+    HISTORY
 }
 
 enum class HistorySource {

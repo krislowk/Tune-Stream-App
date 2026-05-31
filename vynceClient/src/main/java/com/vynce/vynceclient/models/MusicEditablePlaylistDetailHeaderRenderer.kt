@@ -24,6 +24,7 @@ data class MusicDetailHeaderRenderer(
     val title: Runs,
     val subtitle: Runs,
     val secondSubtitle: Runs,
+    val subtitleBadges: List<Badges>? = null,
     val description: Runs?,
     val thumbnail: ThumbnailRenderer,
     val menu: Menu,

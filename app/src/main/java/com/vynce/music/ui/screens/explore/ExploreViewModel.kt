@@ -23,6 +23,9 @@ class ExploreViewModel @Inject constructor(
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
+    private val _isLoadingMore = MutableStateFlow(false)
+    val isLoadingMore: StateFlow<Boolean> = _isLoadingMore.asStateFlow()
+
     init {
         fetchExploreData()
     }
@@ -39,6 +42,29 @@ class ExploreViewModel @Inject constructor(
                     _exploreData.value = it 
                     _isLoading.value = false
                 }
+        }
+    }
+
+    fun loadMore() {
+        val currentData = _exploreData.value
+        val continuation = currentData?.continuation
+        if (continuation != null && !_isLoadingMore.value) {
+            viewModelScope.launch {
+                _isLoadingMore.value = true
+                youtubeProvider.getExplore(continuation)
+                    .catch { e ->
+                        _isLoadingMore.value = false
+                        e.printStackTrace()
+                    }
+                    .collect { nextData ->
+                        _exploreData.value = currentData.copy(
+                            newReleaseAlbums = currentData.newReleaseAlbums + nextData.newReleaseAlbums,
+                            moodAndGenres = currentData.moodAndGenres + nextData.moodAndGenres,
+                            continuation = nextData.continuation
+                        )
+                        _isLoadingMore.value = false
+                    }
+            }
         }
     }
 }

@@ -35,7 +35,6 @@ import kotlin.time.Duration.Companion.milliseconds
 data class PlayerUiState(
     val currentTrack: MediaItem? = null,
     val isPlaying: Boolean = false,
-    val currentPosition: Long = 0L,
     val duration: Long = 0L,
     val isBuffering: Boolean = false,
     val repeatMode: Int = Player.REPEAT_MODE_OFF,
@@ -45,7 +44,9 @@ data class PlayerUiState(
     val relatedSongs: List<MediaItem> = emptyList(),
     val isFetchingMetadata: Boolean = false,
     val isLiked: Boolean = false,
-    val isAutoplayEnabled: Boolean = true
+    val isAutoplayEnabled: Boolean = true,
+    val lyricsOffset: Int = 0,
+    val currentPosition: Long = 0L
 )
 
 @UnstableApi
@@ -55,18 +56,22 @@ class PlayerViewModel @Inject constructor(
     private val songRepository: SongRepository
 ) : ViewModel() {
 
+    // ==================== PLAYER STATE ====================
     private var controller: MediaController? = null
     private val controllerFuture: ListenableFuture<MediaController> by lazy {
         val token = SessionToken(application, ComponentName(application, MusicService::class.java))
         MediaController.Builder(application, token).buildAsync()
     }
     private val upNextBuffer = ArrayDeque<MediaItem>()
+
     private val _uiState = MutableStateFlow(PlayerUiState())
     val uiState = _uiState.asStateFlow()
 
-    private val _lyrics = MutableStateFlow<String?>(null)
-    val lyrics = _lyrics.asStateFlow()
+    // ==================== LYRICS STATE ====================
+    private val _isSyncing = MutableStateFlow(false)
+    val isSyncing = _isSyncing.asStateFlow()
 
+    // ==================== METADATA ====================
     private var metadataJob: kotlinx.coroutines.Job? = null
     private var lastFetchedVideoId: String? = null
 
@@ -75,6 +80,7 @@ class PlayerViewModel @Inject constructor(
         startPositionUpdates()
     }
 
+    // ==================== CONTROLLER SETUP ====================
     private fun setupController() {
         controllerFuture.addListener({
             try {
@@ -115,6 +121,12 @@ class PlayerViewModel @Inject constructor(
         controller?.let { p ->
             val currentItem = p.currentMediaItem
             _uiState.update { state ->
+                val newQueue = if (state.queue.size != p.mediaItemCount) {
+                    List(p.mediaItemCount) { p.getMediaItemAt(it) }
+                } else {
+                    state.queue
+                }
+
                 state.copy(
                     currentTrack = currentItem,
                     isPlaying = p.isPlaying,
@@ -122,8 +134,10 @@ class PlayerViewModel @Inject constructor(
                     isBuffering = p.playbackState == Player.STATE_BUFFERING,
                     repeatMode = p.repeatMode,
                     shuffleEnabled = p.shuffleModeEnabled,
-                    queue = List(p.mediaItemCount) { p.getMediaItemAt(it) },
-                    currentIndex = p.currentMediaItemIndex
+                    queue = newQueue,
+                    currentIndex = p.currentMediaItemIndex,
+                    currentPosition = p.currentPosition,
+                    lyricsOffset = currentItem?.mediaMetadata?.extras?.getInt("lyrics_offset") ?: 0
                 )
             }
             currentItem?.let { updateLikedState(it.mediaId) }
@@ -133,13 +147,31 @@ class PlayerViewModel @Inject constructor(
     private fun startPositionUpdates() = viewModelScope.launch {
         while (isActive) {
             controller?.let { p ->
-                if (p.isPlaying && _uiState.value.currentPosition != p.currentPosition) {
-                    _uiState.update { it.copy(currentPosition = p.currentPosition) }
-                }
+                _uiState.update { it.copy(currentPosition = p.currentPosition) }
             }
-            delay(500.milliseconds)
+            delay(50.milliseconds)
         }
     }
+
+    // ==================== LYRICS MANAGEMENT ====================
+
+    fun startLyricsSync() {
+        // No-op - LyricsManager removed
+    }
+
+    fun finalizeLyricsSync() {
+        // No-op - LyricsManager removed
+    }
+
+    fun cancelLyricsSync() {
+        // No-op - LyricsManager removed
+    }
+
+    fun searchLyricsOnline() {
+        // No-op - LyricsManager removed
+    }
+
+    // ==================== METADATA FETCHING ====================
 
     private fun fetchMetadata(videoId: String) {
         if (videoId == lastFetchedVideoId) return
@@ -148,6 +180,7 @@ class PlayerViewModel @Inject constructor(
         metadataJob?.cancel()
         metadataJob = viewModelScope.launch {
             _uiState.update { it.copy(isFetchingMetadata = true) }
+
             try {
                 val result = withContext(Dispatchers.IO) {
                     YouTube.next(WatchEndpoint(videoId)).getOrNull()
@@ -158,7 +191,6 @@ class PlayerViewModel @Inject constructor(
 
                 val allSongs = result.items.map { it.toMediaItem() }
                 val currentIndex = result.currentIndex ?: 0
-
                 val upNextSongs = if (currentIndex in allSongs.indices) {
                     allSongs.drop(currentIndex + 1)
                 } else {
@@ -168,9 +200,9 @@ class PlayerViewModel @Inject constructor(
                 upNextBuffer.clear()
                 upNextBuffer.addAll(upNextSongs)
 
+                // Auto-add songs to queue if autoplay enabled
                 controller?.let { p ->
                     if (_uiState.value.isAutoplayEnabled && upNextBuffer.isNotEmpty()) {
-
                         val remaining = p.mediaItemCount - p.currentMediaItemIndex - 1
 
                         if (remaining <= 2) {
@@ -178,8 +210,6 @@ class PlayerViewModel @Inject constructor(
 
                             while (upNextBuffer.isNotEmpty() && toAdd.size < 10) {
                                 val item = upNextBuffer.removeFirst()
-
-                                // prevent duplicates
                                 val exists = (0 until p.mediaItemCount)
                                     .any { p.getMediaItemAt(it).mediaId == item.mediaId }
 
@@ -194,35 +224,32 @@ class PlayerViewModel @Inject constructor(
                         }
                     }
                 }
-                launch { loadLyrics(result) }
+
+                // Load content in parallel
                 launch { loadRelated(result) }
 
             } catch (e: Exception) {
                 if (e !is CancellationException) {
                     e.printStackTrace()
                 }
+            } finally {
                 _uiState.update { it.copy(isFetchingMetadata = false) }
             }
         }
     }
 
-    private suspend fun loadLyrics(result: NextResult) {
-        val lyricsText = withContext(Dispatchers.IO) {
-            result.lyricsEndpoint?.let { YouTube.lyrics(it).getOrNull() }
-        }
-        _lyrics.value = lyricsText ?: "Lyrics not available."
-    }
 
     private suspend fun loadRelated(result: NextResult) {
         val related = withContext(Dispatchers.IO) {
             result.relatedEndpoint?.let { YouTube.related(it).getOrNull() }
         }
+
         _uiState.update { state ->
             state.copy(relatedSongs = related?.songs?.map { it.toMediaItem() } ?: emptyList())
         }
     }
 
-    /* ---------------- Player Controls ---------------- */
+    // ==================== PLAYER CONTROLS ====================
 
     fun play(mediaItem: MediaItem) = runPlayer {
         lastFetchedVideoId = null
@@ -241,6 +268,11 @@ class PlayerViewModel @Inject constructor(
 
     fun togglePlayPause() = runPlayer {
         if (isPlaying) pause() else play()
+    }
+
+    fun stopPlayer() = runPlayer {
+        stop()
+        clearMediaItems()
     }
 
     fun seekTo(position: Long) = runPlayer { seekTo(position) }
@@ -283,7 +315,7 @@ class PlayerViewModel @Inject constructor(
 
     fun toggleAutoplay() {
         _uiState.update { it.copy(isAutoplayEnabled = !it.isAutoplayEnabled) }
-        runPlayer{ playWhenReady = true }
+        runPlayer { playWhenReady = true }
     }
 
     fun setSpeed(speed: Float) = runPlayer { setPlaybackSpeed(speed) }
@@ -301,14 +333,25 @@ class PlayerViewModel @Inject constructor(
         }
     }
 
-    /* ---------------- Repository Actions ---------------- */
+    fun addToPlaylist(playlistId: String, videoId: String) {
+        viewModelScope.launch {
+            YouTube.addToPlaylist(playlistId, videoId)
+        }
+    }
+
+    // ==================== REPOSITORY ACTIONS ====================
 
     private fun updateLikedState(videoId: String) = viewModelScope.launch {
-        _uiState.update { it.copy(isLiked = songRepository.isLiked(videoId)) }
+        val song = songRepository.getSongByMediaId(videoId)
+        _uiState.update { it.copy(
+            isLiked = song?.isLiked ?: false,
+            lyricsOffset = song?.lyricsOffset ?: 0
+        ) }
     }
 
     fun toggleLike() = viewModelScope.launch {
         val currentTrack = _uiState.value.currentTrack ?: return@launch
+
         val song = Song(
             mediaId = currentTrack.mediaId,
             title = currentTrack.mediaMetadata.title?.toString() ?: "Unknown",
@@ -316,12 +359,23 @@ class PlayerViewModel @Inject constructor(
             album = currentTrack.mediaMetadata.albumTitle?.toString(),
             duration = 0,
             thumbnail = currentTrack.mediaMetadata.artworkUri?.toString() ?: "",
-            isYoutube = true
+            isYoutube = true,
+            lyricsOffset = _uiState.value.lyricsOffset
         )
+
         songRepository.toggleLike(song)
         _uiState.update { it.copy(isLiked = !it.isLiked) }
     }
 
+    fun updateLyricsOffset(offset: Int) = viewModelScope.launch {
+        val currentTrack = _uiState.value.currentTrack ?: return@launch
+
+        _uiState.update { it.copy(lyricsOffset = offset) }
+
+        songRepository.getSongByMediaId(currentTrack.mediaId)?.let { song ->
+            songRepository.updateLyricsOffset(song.mediaId, offset)
+        }
+    }
 
     private fun saveToHistory(mediaItem: MediaItem) = viewModelScope.launch {
         val song = Song(
@@ -336,7 +390,7 @@ class PlayerViewModel @Inject constructor(
         songRepository.markAsPlayed(song)
     }
 
-    /* ---------------- Helpers ---------------- */
+    // ==================== HELPERS ====================
 
     private fun runPlayer(block: MediaController.() -> Unit) {
         controller?.apply(block)
@@ -347,15 +401,3 @@ class PlayerViewModel @Inject constructor(
         super.onCleared()
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-

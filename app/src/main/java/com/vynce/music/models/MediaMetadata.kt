@@ -1,6 +1,7 @@
 package com.vynce.music.models
 
 import androidx.compose.runtime.Immutable
+import androidx.media3.common.MediaItem
 import com.vynce.music.db.entities.Song
 import com.vynce.music.db.entities.SongEntity
 import com.vynce.music.ui.utils.resize
@@ -74,6 +75,18 @@ data class MediaMetadata(
         setVideoId = setVideoId,
         isEpisode = isEpisode,
         uploadEntityId = uploadEntityId
+    )
+}
+
+fun MediaItem.toMediaMetadata(): MediaMetadata {
+    val meta = mediaMetadata
+    return MediaMetadata(
+        id = mediaId,
+        title = meta.title?.toString() ?: "",
+        artists = listOf(MediaMetadata.Artist(id = null, name = meta.artist?.toString() ?: "")),
+        duration = (meta.extras?.getLong("duration") ?: -1L).toInt(),
+        thumbnailUrl = meta.artworkUri?.toString(),
+        album = meta.albumTitle?.let { MediaMetadata.Album(id = "", title = it.toString()) }
     )
 }
 

@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -29,15 +30,21 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.media3.common.util.UnstableApi
 import coil.compose.SubcomposeAsyncImage
 import com.vynce.music.ui.theme.VynceTheme
 import com.vynce.music.utils.shimmerEffect
 
+@androidx.annotation.OptIn(UnstableApi::class)
 @Composable
 fun MiniPlayer(
     viewModel: PlayerViewModel,
@@ -63,16 +70,41 @@ fun MiniPlayer(
             .padding(horizontal = 8.dp, vertical = 4.dp)
             .clip(RoundedCornerShape(16.dp))
             .clickable(onClick = onClick),
-        color = VynceTheme.colors.surface,
+        color = Color.Transparent, // Set to transparent to show blurred background
         tonalElevation = 8.dp
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
+            // Blurred Artwork Background
+            SubcomposeAsyncImage(
+                model = song.mediaMetadata.artworkUri,
+                contentDescription = null,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .blur(radius = 40.dp)
+                    .graphicsLayer { alpha = 0.6f },
+                contentScale = ContentScale.Crop
+            )
+
+            // Background Overlays
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                colors.surface.copy(alpha = 0.7f),
+                                colors.surface.copy(alpha = 0.9f)
+                            )
+                        )
+                    )
+            )
+
             // Background Progress Fill
             Box(
                 modifier = Modifier
                     .fillMaxHeight()
                     .fillMaxWidth(animatedProgress)
-                    .background(colors.primary.copy(alpha = 0.05f))
+                    .background(colors.primary.copy(alpha = 0.1f))
             )
 
             Row(
@@ -116,7 +148,7 @@ fun MiniPlayer(
                     onClick = { viewModel.togglePlayPause() },
                     modifier = Modifier.size(48.dp)
                 ) {
-                    if (uiState.isBuffering) {
+                    if (uiState.isBuffering && !uiState.isPlaying) {
                         CircularProgressIndicator(
                             color = colors.primary,
                             modifier = Modifier.size(24.dp),
@@ -130,6 +162,18 @@ fun MiniPlayer(
                             modifier = Modifier.size(28.dp)
                         )
                     }
+                }
+
+                IconButton(
+                    onClick = { viewModel.skipNext() },
+                    modifier = Modifier.size(48.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.SkipNext,
+                        contentDescription = null,
+                        tint = colors.textPrimary,
+                        modifier = Modifier.size(24.dp)
+                    )
                 }
             }
             

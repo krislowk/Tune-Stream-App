@@ -66,7 +66,12 @@ fun NavGraph(
             )
         }
         composable<LibraryRoute> {
-            LibraryScreen()
+            LibraryScreen(
+                onHistoryClick = { navController.navigate(HistoryRoute) },
+                onSettingsClick = { navController.navigate(SettingsRoute) },
+                onArtistClick = { navController.navigate(ArtistRoute(it)) },
+                onAlbumClick = { navController.navigate(AlbumRoute(it)) }
+            )
         }
         composable<HistoryRoute> {
             HistoryScreen(

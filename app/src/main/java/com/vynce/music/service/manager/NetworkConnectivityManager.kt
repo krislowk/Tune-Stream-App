@@ -1,4 +1,4 @@
-package com.vynce.music.utils
+package com.vynce.music.service.manager
 
 import android.content.Context
 import android.net.ConnectivityManager

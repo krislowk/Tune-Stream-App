@@ -37,6 +37,7 @@ import androidx.compose.material.icons.outlined.LibraryMusic
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Lyrics
 import androidx.compose.material.icons.outlined.Palette
+import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Policy
 import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.outlined.SkipNext
@@ -47,6 +48,8 @@ import androidx.compose.material.icons.outlined.Wifi
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Switch
@@ -75,7 +78,6 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.vynce.music.repository.constants.PreferenceConstants
-import com.vynce.music.ui.components.Card
 import com.vynce.music.ui.theme.VynceTheme
 import kotlinx.coroutines.flow.MutableStateFlow
 
@@ -84,9 +86,9 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val isLoggedIn by viewModel.isLoggedIn.collectAsState()
-    val username by viewModel.username.collectAsState()
-    val userEmail by viewModel.userEmail.collectAsState()
-    val userThumbnail by viewModel.userThumbnail.collectAsState()
+    val currentUser by viewModel.currentUser.collectAsState()
+    val isScanning by viewModel.isScanning.collectAsState()
+    val isSyncing by viewModel.isSyncing.collectAsState()
     val context = LocalContext.current
 
     var showLoginDialog by remember { mutableStateOf(false) }
@@ -130,6 +132,17 @@ fun SettingsScreen(
             onOptionSelected = { viewModel.setContentRegion(it); activeSelection = null },
             onDismiss = { activeSelection = null }
         )
+        SelectionType.CROSSFADE_DURATION -> SettingsSelectionDialog(
+            title = "Crossfade Duration",
+            options = listOf("1 second" to 1, "3 seconds" to 3, "5 seconds" to 5, "7 seconds" to 7, "10 seconds" to 10, "12 seconds" to 12, "15 seconds" to 15),
+            selectedOption = viewModel.crossfadeDuration.collectAsState().value,
+            onOptionSelected = { viewModel.setCrossfadeDuration(it); activeSelection = null },
+            onDismiss = { activeSelection = null }
+        )
+        SelectionType.LIBRARY_MANAGEMENT -> LibraryManagementSheet(
+            viewModel = viewModel,
+            onDismiss = { activeSelection = null }
+        )
         null -> {}
     }
 
@@ -147,12 +160,14 @@ fun SettingsScreen(
         )
 
         // Account Section
-        Card(modifier = Modifier.fillMaxWidth(), cornerRadius = 24.dp) {
+        Card(modifier = Modifier.fillMaxWidth(),
+         //   cornerRadius = 24.dp
+        ) {
             if (isLoggedIn) {
                 UserHeader(
-                    username = username ?: "User",
-                    email = userEmail,
-                    thumbnail = userThumbnail,
+                    username = currentUser?.name ?: "User",
+                    email = currentUser?.email,
+                    thumbnail = currentUser?.avatarUrl,
                     onLogout = { viewModel.logout() },
                     onRefresh = { viewModel.refreshAccountInfo() }
                 )
@@ -189,6 +204,14 @@ fun SettingsScreen(
                 state = viewModel.crossfadeEnabled,
                 onToggle = { viewModel.toggleBoolean(PreferenceConstants.CROSSFADE_ENABLED, viewModel.crossfadeEnabled, it) }
             )
+            if (viewModel.crossfadeEnabled.collectAsState().value) {
+                SettingsSelectItem(
+                    title = "Crossfade Duration",
+                    subtitle = "${viewModel.crossfadeDuration.collectAsState().value} seconds",
+                    icon = Icons.Outlined.Update,
+                    onClick = { activeSelection = SelectionType.CROSSFADE_DURATION }
+                )
+            }
             SettingsSelectItem(
                 title = "Playback Speed",
                 subtitle = "${viewModel.playbackSpeed.collectAsState().value}x",
@@ -218,6 +241,12 @@ fun SettingsScreen(
                 subtitle = viewModel.downloadQuality.collectAsState().value,
                 icon = Icons.Outlined.Download,
                 onClick = { activeSelection = SelectionType.DOWNLOAD_QUALITY }
+            )
+            SettingsActionItem(
+                title = "Scan Local Songs",
+                subtitle = if (isScanning) "Scanning..." else "Search device for audio files",
+                icon = Icons.Outlined.LibraryMusic,
+                onClick = { viewModel.scanLocalSongs() }
             )
             SettingsActionItem(
                 title = "Clear Cache",
@@ -282,6 +311,12 @@ fun SettingsScreen(
         Spacer(modifier = Modifier.height(24.dp))
 
         SettingsSection(title = "Advanced") {
+            SettingsSelectItem(
+                title = "Library Synchronization",
+                subtitle = if (isSyncing) "Syncing in progress..." else "Manage online library and sync settings",
+                icon = Icons.Outlined.Update,
+                onClick = { activeSelection = SelectionType.LIBRARY_MANAGEMENT }
+            )
             SettingsToggleItem(
                 title = "Use Login for Browse",
                 subtitle = "Show personalized recommendations",
@@ -382,7 +417,9 @@ enum class SelectionType {
     AUDIO_QUALITY,
     DOWNLOAD_QUALITY,
     LANGUAGE,
-    CONTENT_REGION
+    CONTENT_REGION,
+    CROSSFADE_DURATION,
+    LIBRARY_MANAGEMENT
 }
 
 @Composable
@@ -507,7 +544,9 @@ fun SettingsSection(title: String, content: @Composable ColumnScope.() -> Unit) 
             color = VynceTheme.colors.primary,
             modifier = Modifier.padding(start = 8.dp, bottom = 12.dp)
         )
-        Card(modifier = Modifier.fillMaxWidth(), cornerRadius = 24.dp) {
+        Card(modifier = Modifier.fillMaxWidth(),
+            //cornerRadius = 24.dp
+            ) {
             Column(modifier = Modifier.padding(vertical = 8.dp)) {
                 content()
             }
@@ -590,6 +629,135 @@ fun SettingsActionItem(title: String, subtitle: String? = null, icon: ImageVecto
             }
         }
         Icon(imageVector = Icons.Default.ChevronRight, contentDescription = null, tint = VynceTheme.colors.textSecondary)
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun LibraryManagementSheet(
+    viewModel: SettingsViewModel,
+    onDismiss: () -> Unit
+) {
+    val isSyncing by viewModel.isSyncing.collectAsState()
+    val isDeepSyncing by viewModel.isDeepSyncing.collectAsState()
+    
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        androidx.compose.material3.Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = VynceTheme.colors.background
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = onDismiss) {
+                        Icon(Icons.Default.Close, contentDescription = "Close", tint = VynceTheme.colors.textPrimary)
+                    }
+                    Text(
+                        "Library Synchronization",
+                        style = VynceTheme.typography.title.copy(fontSize = 20.sp, fontWeight = FontWeight.Bold),
+                        color = VynceTheme.colors.textPrimary,
+                        modifier = Modifier.padding(start = 8.dp)
+                    )
+                }
+
+                Text(
+                    "Core Actions",
+                    style = VynceTheme.typography.label.copy(fontWeight = FontWeight.Bold),
+                    color = VynceTheme.colors.primary,
+                    modifier = Modifier.padding(start = 8.dp, bottom = 12.dp)
+                )
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(vertical = 8.dp)) {
+                        SettingsActionItem(
+                            title = "Full Sync",
+                            subtitle = if (isSyncing) "Syncing..." else "Update all library components",
+                            icon = Icons.Outlined.Update,
+                            onClick = { viewModel.syncOnlineData() }
+                        )
+                        SettingsActionItem(
+                            title = "Deep Sync",
+                            subtitle = if (isDeepSyncing) "Deep syncing..." else "Force update all data (Slow)",
+                            icon = Icons.Outlined.Update,
+                            onClick = { viewModel.deepSync() }
+                        )
+                        SettingsActionItem(
+                            title = "Cancel Operations",
+                            subtitle = "Stop all background sync tasks",
+                            icon = Icons.Default.Close,
+                            onClick = { viewModel.cancelAllSyncs() }
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Text(
+                    "Granular Sync",
+                    style = VynceTheme.typography.label.copy(fontWeight = FontWeight.Bold),
+                    color = VynceTheme.colors.primary,
+                    modifier = Modifier.padding(start = 8.dp, bottom = 12.dp)
+                )
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(vertical = 8.dp)) {
+                        SettingsActionItem(title = "Sync Liked Songs", icon = Icons.Outlined.Update, onClick = { viewModel.syncLikedSongs() })
+                        SettingsActionItem(title = "Sync Library Songs", icon = Icons.Outlined.Update, onClick = { viewModel.syncLibrarySongs() })
+                        SettingsActionItem(title = "Sync Uploaded Songs", icon = Icons.Outlined.Update, onClick = { viewModel.syncUploadedSongs() })
+                        SettingsActionItem(title = "Sync All Albums", icon = Icons.Outlined.LibraryMusic, onClick = { viewModel.syncAllAlbums() })
+                        SettingsActionItem(title = "Sync All Artists", icon = Icons.Outlined.Person, onClick = { viewModel.syncAllArtists() })
+                        SettingsActionItem(title = "Sync Podcasts", icon = Icons.Outlined.GraphicEq, onClick = { viewModel.syncPodcasts() })
+                        SettingsActionItem(title = "Sync Playlists", icon = Icons.Outlined.Update, onClick = { viewModel.syncPlaylists() })
+                        SettingsActionItem(title = "Sync Auto-Sync Playlists", icon = Icons.Outlined.Update, onClick = { viewModel.syncAutoPlaylists() })
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Text(
+                    "Maintenance & Cleanup",
+                    style = VynceTheme.typography.label.copy(fontWeight = FontWeight.Bold),
+                    color = Color.Red.copy(alpha = 0.7f),
+                    modifier = Modifier.padding(start = 8.dp, bottom = 12.dp)
+                )
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(vertical = 8.dp)) {
+                        SettingsActionItem(
+                            title = "Cleanup Duplicate Playlists",
+                            icon = Icons.Outlined.LibraryMusic,
+                            onClick = { viewModel.cleanupDuplicates() }
+                        )
+                        SettingsActionItem(
+                            title = "Clear Synced Metadata",
+                            subtitle = "Resets sync status for all items",
+                            icon = Icons.Outlined.DeleteSweep,
+                            onClick = { viewModel.clearAllSynced() }
+                        )
+                        SettingsActionItem(
+                            title = "Clear Podcast Data",
+                            icon = Icons.Outlined.DeleteSweep,
+                            onClick = { viewModel.clearPodcastData() }
+                        )
+                        SettingsActionItem(
+                            title = "Factory Reset Database",
+                            subtitle = "Wipe all local data (History, Library, etc.)",
+                            icon = Icons.Outlined.DeleteSweep,
+                            onClick = { viewModel.clearAllLibraryData() }
+                        )
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(48.dp))
+            }
+        }
     }
 }
 

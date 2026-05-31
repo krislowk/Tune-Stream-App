@@ -1,5 +1,7 @@
 package com.vynce.music.ui.screens.player
 
+import android.content.Intent
+import android.widget.Toast
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -54,6 +56,7 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -63,6 +66,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
@@ -70,6 +74,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -78,15 +83,21 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
 import coil.compose.SubcomposeAsyncImage
-import com.vynce.music.ui.components.BottomModal
+import com.vynce.music.repository.constants.LibraryFilter
+import com.vynce.music.ui.components.AddToPlaylistSheet
+import com.vynce.music.ui.components.BottomSheet
 import com.vynce.music.ui.components.MoreOptionsSheet
+import com.vynce.music.ui.components.rememberBottomSheetState
+import com.vynce.music.ui.screens.library.LibraryViewModel
 import com.vynce.music.ui.theme.VynceTheme
 import com.vynce.music.utils.formatTime
 import com.vynce.music.utils.shimmerEffect
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 
+@androidx.annotation.OptIn(UnstableApi::class)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PlayerScreen(
@@ -98,15 +109,22 @@ fun PlayerScreen(
     onExpand: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val lyrics by viewModel.lyrics.collectAsState()
+    val isSyncing by viewModel.isSyncing.collectAsState()
+    val context = LocalContext.current
 
     var showMoreOptions by remember { mutableStateOf(false) }
-    var isQueueExpanded by remember { mutableStateOf(false) }
+    var showAddToPlaylist by remember { mutableStateOf(false) }
+    
+    val queueSheetState = rememberBottomSheetState(
+        dismissedBound = 0.dp,
+        expandedBound = 800.dp,
+        collapsedBound = 80.dp,
+        initialAnchor = com.vynce.music.ui.components.collapsedAnchor
+    )
 
     val colors = VynceTheme.colors
     val progress = expansionProgress()
 
-    // Smooth transition between Mini and Full UI
     val miniPlayerAlpha = (1f - (progress * 10f)).coerceIn(0f, 1f)
     val fullPlayerAlpha = (progress * 1.5f).coerceIn(0f, 1f)
     val artworkScale = (0.7f + (progress * 0.3f)).coerceIn(0.7f, 1f)
@@ -129,321 +147,427 @@ fun PlayerScreen(
         label = "translation"
     )
 
-    BottomModal(
-        isExpanded = isQueueExpanded,
-        onExpandChange = { isQueueExpanded = it },
-        peekHeight = 80.dp,
-        showSheet = progress > 0.5f,
-        sheetContent = { queueProgress ->
-            TabbedQueueContent(
-                uiState = uiState,
-                lyrics = lyrics,
-                onPlayItem = { viewModel.playQueueItem(it) },
-                onRemoveItem = { viewModel.removeFromQueue(it) },
-                onMoveItem = { from, to -> viewModel.moveQueueItem(from, to) },
-                onToggleAutoplay = { viewModel.toggleAutoplay() },
-                progress = queueProgress
-            )
-        },
+    Box(modifier = Modifier.fillMaxSize()) {
+        // Player Background
+        PlayerScreenBackground(
+            artworkUri = uiState.currentTrack?.mediaMetadata?.artworkUri,
+            alpha = fullPlayerAlpha
+        )
 
-    ) { padding ->
-        Box(modifier = Modifier.fillMaxSize()) {
-            // Full Player UI Background & Content
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .graphicsLayer { alpha = fullPlayerAlpha }
-                    .background(
-                        brush = Brush.verticalGradient(
-                            colors = listOf(
-                                colors.primary.copy(alpha = 0.15f),
-                                colors.background
-                            )
+        // Player Content
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer { alpha = fullPlayerAlpha }
+                .padding(horizontal = 32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .statusBarsPadding()
+                        .padding(top = 16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = onClose) {
+                        Icon(
+                            imageVector = Icons.Default.KeyboardArrowDown,
+                            contentDescription = "Close",
+                            tint = colors.textPrimary,
+                            modifier = Modifier.size(32.dp)
                         )
+                    }
+                    Text(
+                        text = "NOW PLAYING",
+                        style = VynceTheme.typography.label.copy(
+                            letterSpacing = 2.sp,
+                            fontWeight = FontWeight.Bold
+                        ),
+                        color = colors.textSecondary
                     )
-                    .padding(padding)
-            ) {
+                    IconButton(onClick = { showMoreOptions = true }) {
+                        Icon(
+                            imageVector = Icons.Default.MoreHoriz,
+                            contentDescription = "More",
+                            tint = colors.textPrimary,
+                            modifier = Modifier.size(32.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.weight(0.4f))
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(1f)
+                        .graphicsLayer {
+                            scaleX = artworkScale
+                            scaleY = artworkScale
+                        }
+                        .shadow(
+                            elevation = (32.dp * progress),
+                            shape = RoundedCornerShape(artworkCornerRadius),
+                            clip = false
+                        )
+                        .clip(RoundedCornerShape(artworkCornerRadius))
+                        .background(colors.surface),
+                    contentAlignment = Alignment.Center
+                ) {
+                    SubcomposeAsyncImage(
+                        model = uiState.currentTrack?.mediaMetadata?.artworkUri,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop,
+                        loading = {
+                            Box(modifier = Modifier.fillMaxSize().shimmerEffect())
+                        }
+                    )
+                }
+
+                Spacer(modifier = Modifier.weight(0.4f))
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .graphicsLayer { 
+                            translationY = (40f * (1f - progress))
+                            alpha = fullPlayerAlpha
+                        },
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = uiState.currentTrack?.mediaMetadata?.title?.toString() ?: "Unknown",
+                            style = VynceTheme.typography.title.copy(fontSize = 26.sp, fontWeight = FontWeight.Black),
+                            maxLines = 1,
+                            color = colors.textPrimary,
+                            modifier = Modifier.basicMarquee()
+                        )
+                        Text(
+                            text = uiState.currentTrack?.mediaMetadata?.artist?.toString() ?: "Unknown",
+                            style = VynceTheme.typography.body.copy(fontSize = 18.sp, color = colors.textSecondary),
+                            maxLines = 1,
+                            modifier = Modifier
+                                .clickable {
+                                    uiState.currentTrack?.mediaMetadata?.extras?.getString("artist_id")?.let { onNavigateToArtist(it) }
+                                }
+                                .basicMarquee()
+                        )
+                    }
+
+                    IconButton(
+                        onClick = { viewModel.toggleLike() },
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clip(CircleShape)
+                            .background(colors.surface)
+                    ) {
+                        Icon(
+                            imageVector = if (uiState.isLiked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                            contentDescription = "Like",
+                            tint = if (uiState.isLiked) colors.primary else colors.textPrimary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(32.dp))
+
                 Column(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 32.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                        .fillMaxWidth()
+                        .graphicsLayer { alpha = fullPlayerAlpha }
                 ) {
-                    // Header
+                    Slider(
+                        value = animatedSliderPosition,
+                        onValueChange = {
+                            sliderPosition = it
+                            isSeeking = true
+                        },
+                        onValueChangeFinished = {
+                            viewModel.seekTo((sliderPosition * uiState.duration).toLong())
+                            isSeeking = false
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = SliderDefaults.colors(
+                            thumbColor = colors.primary,
+                            activeTrackColor = colors.primary,
+                            inactiveTrackColor = colors.glassBorder
+                        )
+                    )
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .statusBarsPadding()
-                            .padding(top = 16.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = formatTime(uiState.currentPosition),
+                            style = VynceTheme.typography.label,
+                            color = colors.textSecondary
+                        )
+                        Text(
+                            text = formatTime(uiState.duration),
+                            style = VynceTheme.typography.label,
+                            color = colors.textSecondary
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        IconButton(onClick = onClose) {
+                        IconButton(onClick = { viewModel.toggleShuffle() }) {
                             Icon(
-                                imageVector = Icons.Default.KeyboardArrowDown,
-                                contentDescription = "Close",
-                                tint = colors.textPrimary,
-                                modifier = Modifier.size(32.dp)
-                            )
-                        }
-                        Text(
-                            text = "NOW PLAYING",
-                            style = VynceTheme.typography.label.copy(
-                                letterSpacing = 2.sp,
-                                fontWeight = FontWeight.Bold
-                            ),
-                            color = colors.textSecondary
-                        )
-                        IconButton(onClick = { showMoreOptions = true }) {
-                            Icon(
-                                imageVector = Icons.Default.MoreHoriz,
-                                contentDescription = "More",
-                                tint = colors.textPrimary,
-                                modifier = Modifier.size(32.dp)
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.weight(0.4f))
-
-                    // Artwork (Scaled and Morphing)
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .aspectRatio(1f)
-                            .graphicsLayer {
-                                scaleX = artworkScale
-                                scaleY = artworkScale
-                            }
-                            .shadow(
-                                elevation = (32.dp * progress),
-                                shape = RoundedCornerShape(artworkCornerRadius),
-                                clip = false
-                            )
-                            .clip(RoundedCornerShape(artworkCornerRadius))
-                            .background(colors.surface),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        SubcomposeAsyncImage(
-                            model = uiState.currentTrack?.mediaMetadata?.artworkUri,
-                            contentDescription = null,
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop,
-                            loading = {
-                                Box(modifier = Modifier.fillMaxSize().shimmerEffect())
-                            }
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.weight(0.4f))
-
-                    // Info (Slide up and fade in)
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .graphicsLayer { 
-                                translationY = (40f * (1f - progress))
-                                alpha = fullPlayerAlpha
-                            },
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = uiState.currentTrack?.mediaMetadata?.title?.toString() ?: "Unknown",
-                                style = VynceTheme.typography.title.copy(fontSize = 26.sp, fontWeight = FontWeight.Black),
-                                maxLines = 1,
-                                color = colors.textPrimary,
-                                modifier = Modifier.basicMarquee()
-                            )
-                            Text(
-                                text = uiState.currentTrack?.mediaMetadata?.artist?.toString() ?: "Unknown",
-                                style = VynceTheme.typography.body.copy(fontSize = 18.sp, color = colors.textSecondary),
-                                maxLines = 1,
-                                modifier = Modifier
-                                    .clickable {
-                                        uiState.currentTrack?.mediaMetadata?.extras?.getString("artist_id")?.let { onNavigateToArtist(it) }
-                                    }
-                                    .basicMarquee()
+                                imageVector = Icons.Default.Shuffle,
+                                contentDescription = "Shuffle",
+                                tint = if (uiState.shuffleEnabled) colors.primary else colors.textSecondary,
+                                modifier = Modifier.size(24.dp)
                             )
                         }
 
-                        IconButton(
-                            onClick = { viewModel.toggleLike() },
-                            modifier = Modifier
-                                .size(48.dp)
-                                .clip(CircleShape)
-                                .background(colors.surface)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(24.dp)
                         ) {
+                            IconButton(onClick = { viewModel.skipPrevious() }) {
+                                Icon(
+                                    imageVector = Icons.Default.SkipPrevious,
+                                    contentDescription = "Previous",
+                                    modifier = Modifier.size(40.dp),
+                                    tint = colors.textPrimary
+                                )
+                            }
+
+                            Surface(
+                                modifier = Modifier
+                                    .size(80.dp)
+                                    .shadow(12.dp, CircleShape)
+                                    .clickable { viewModel.togglePlayPause() },
+                                shape = CircleShape,
+                                color = colors.primary
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    if (uiState.isBuffering && !uiState.isPlaying) {
+                                        CircularProgressIndicator(
+                                            color = colors.onPrimary,
+                                            modifier = Modifier.size(36.dp),
+                                            strokeWidth = 3.dp
+                                        )
+                                    } else {
+                                        Icon(
+                                            imageVector = if (uiState.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                            contentDescription = if (uiState.isPlaying) "Pause" else "Play",
+                                            modifier = Modifier.size(48.dp),
+                                            tint = colors.onPrimary
+                                        )
+                                    }
+                                }
+                            }
+
+                            IconButton(onClick = { viewModel.skipNext() }) {
+                                Icon(
+                                    imageVector = Icons.Default.SkipNext,
+                                    contentDescription = "Next",
+                                    modifier = Modifier.size(40.dp),
+                                    tint = colors.textPrimary
+                                )
+                            }
+                        }
+
+                        IconButton(onClick = { viewModel.toggleRepeat() }) {
                             Icon(
-                                imageVector = if (uiState.isLiked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                                contentDescription = "Like",
-                                tint = if (uiState.isLiked) colors.primary else colors.textPrimary,
+                                imageVector = when (uiState.repeatMode) {
+                                    Player.REPEAT_MODE_ONE -> Icons.Default.RepeatOne
+                                    Player.REPEAT_MODE_ALL -> Icons.Default.Repeat
+                                    else -> Icons.Default.Repeat
+                                },
+                                contentDescription = "Repeat",
+                                tint = if (uiState.repeatMode != Player.REPEAT_MODE_OFF) colors.primary else colors.textSecondary,
                                 modifier = Modifier.size(24.dp)
                             )
                         }
                     }
+                }
+                Spacer(modifier = Modifier.height(48.dp))
+            }
 
-                    Spacer(modifier = Modifier.height(32.dp))
-
-                    // Progress & Controls (Fade in)
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .graphicsLayer { alpha = fullPlayerAlpha }
-                    ) {
-                        Slider(
-                            value = animatedSliderPosition,
-                            onValueChange = {
-                                sliderPosition = it
-                                isSeeking = true
-                            },
-                            onValueChangeFinished = {
-                                viewModel.seekTo((sliderPosition * uiState.duration).toLong())
-                                isSeeking = false
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = SliderDefaults.colors(
-                                thumbColor = colors.primary,
-                                activeTrackColor = colors.primary,
-                                inactiveTrackColor = colors.glassBorder
-                            )
-                        )
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = formatTime(uiState.currentPosition),
-                                style = VynceTheme.typography.label,
-                                color = colors.textSecondary
-                            )
-                            Text(
-                                text = formatTime(uiState.duration),
-                                style = VynceTheme.typography.label,
-                                color = colors.textSecondary
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(24.dp))
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            IconButton(onClick = { viewModel.toggleShuffle() }) {
-                                Icon(
-                                    imageVector = Icons.Default.Shuffle,
-                                    contentDescription = "Shuffle",
-                                    tint = if (uiState.shuffleEnabled) colors.primary else colors.textSecondary,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            }
-
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(24.dp)
-                            ) {
-                                IconButton(onClick = { viewModel.skipPrevious() }) {
-                                    Icon(
-                                        imageVector = Icons.Default.SkipPrevious,
-                                        contentDescription = "Previous",
-                                        modifier = Modifier.size(40.dp),
-                                        tint = colors.textPrimary
-                                    )
-                                }
-
-                                Surface(
-                                    modifier = Modifier
-                                        .size(80.dp)
-                                        .shadow(12.dp, CircleShape)
-                                        .clickable(enabled = !uiState.isBuffering) { viewModel.togglePlayPause() },
-                                    shape = CircleShape,
-                                    color = colors.primary
-                                ) {
-                                    Box(contentAlignment = Alignment.Center) {
-                                        if (uiState.isBuffering) {
-                                            CircularProgressIndicator(
-                                                color = colors.onPrimary,
-                                                modifier = Modifier.size(36.dp),
-                                                strokeWidth = 3.dp
-                                            )
-                                        } else {
-                                            Icon(
-                                                imageVector = if (uiState.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                                contentDescription = if (uiState.isPlaying) "Pause" else "Play",
-                                                modifier = Modifier.size(48.dp),
-                                                tint = colors.onPrimary
-                                            )
-                                        }
-                                    }
-                                }
-
-                                IconButton(onClick = { viewModel.skipNext() }) {
-                                    Icon(
-                                        imageVector = Icons.Default.SkipNext,
-                                        contentDescription = "Next",
-                                        modifier = Modifier.size(40.dp),
-                                        tint = colors.textPrimary
-                                    )
-                                }
-                            }
-
-                            IconButton(onClick = { viewModel.toggleRepeat() }) {
-                                Icon(
-                                    imageVector = when (uiState.repeatMode) {
-                                        Player.REPEAT_MODE_ONE -> Icons.Default.RepeatOne
-                                        Player.REPEAT_MODE_ALL -> Icons.Default.Repeat
-                                        else -> Icons.Default.Repeat
-                                    },
-                                    contentDescription = "Repeat",
-                                    tint = if (uiState.repeatMode != Player.REPEAT_MODE_OFF) colors.primary else colors.textSecondary,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            }
-                        }
+        // Mini Player
+        if (progress < 0.8f) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(72.dp)
+                    .align(Alignment.TopCenter)
+                    .graphicsLayer {
+                        alpha = miniPlayerAlpha
+                        translationY = animatedtranslation
                     }
-
-                    Spacer(modifier = Modifier.height(48.dp))
-                }
-            }
-
-            // Mini Player UI (Fades out as we expand)
-            if (progress < 0.8f) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(72.dp)
-                        .align(Alignment.TopCenter)
-                        .graphicsLayer {
-                            alpha = miniPlayerAlpha
-                            translationY = animatedtranslation
-                        }
-                ) {
-                    MiniPlayer(
-                        viewModel = viewModel,
-                        onClick = onExpand
-                    )
-                }
-            }
-
-            if (showMoreOptions && uiState.currentTrack != null) {
-                val metadata = uiState.currentTrack!!.mediaMetadata
-                val albumId = metadata.extras?.getString("album_id")
-                val artistId = metadata.extras?.getString("artist_id")
-
-                MoreOptionsSheet(
-                    title = metadata.title?.toString() ?: "Unknown",
-                    subtitle = metadata.artist?.toString() ?: "Unknown",
-                    thumbnailUrl = metadata.artworkUri?.toString() ?: "",
-                    onDismiss = { showMoreOptions = false },
-                    onAddToPlaylist = { /* TODO */ },
-                    onViewAlbum = albumId?.let { id -> { onNavigateToAlbum(id); onClose() } },
-                    onGoToArtist = artistId?.let { id -> { onNavigateToArtist(id); onClose() } },
-                    onShare = { /* TODO */ }
+            ) {
+                MiniPlayer(
+                    viewModel = viewModel,
+                    onClick = onExpand
                 )
             }
         }
+
+        // Queue/Lyrics BottomSheet
+        BottomSheet(
+            state = queueSheetState,
+            isExpandable = progress > 0.5f,
+            background = {
+                if (queueSheetState.progress > 0.01f) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = (queueSheetState.progress * 0.4f).coerceIn(0f, 0.4f)))
+                            .clickable { queueSheetState.collapseSoft() }
+                    )
+                }
+            },
+            collapsedContent = {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
+                    TabbedQueueContent(
+                        uiState = uiState,
+                        isSyncing = isSyncing,
+                        syncProgress = 0f,
+                        onPlayItem = { viewModel.playQueueItem(it) },
+                        onRemoveItem = { viewModel.removeFromQueue(it) },
+                        onMoveItem = { from, to -> viewModel.moveQueueItem(from, to) },
+                        onToggleAutoplay = { viewModel.toggleAutoplay() },
+                        onSearchOnline = { viewModel.searchLyricsOnline() },
+                        onOffsetChange = { viewModel.updateLyricsOffset(it) },
+                        onStartSync = { viewModel.startLyricsSync() },
+                        onFinalizeSync = { viewModel.finalizeLyricsSync() },
+                        onCancelSync = { viewModel.cancelLyricsSync() },
+                        currentPosition = uiState.currentPosition,
+                        onSeek = { viewModel.seekTo(it) },
+                        progress = 0f
+                    )
+                }
+            }
+        ) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
+                TabbedQueueContent(
+                    uiState = uiState,
+                    isSyncing = isSyncing,
+                    syncProgress = 0f,
+                    onPlayItem = { viewModel.playQueueItem(it) },
+                    onRemoveItem = { viewModel.removeFromQueue(it) },
+                    onMoveItem = { from, to -> viewModel.moveQueueItem(from, to) },
+                    onToggleAutoplay = { viewModel.toggleAutoplay() },
+                    onSearchOnline = { viewModel.searchLyricsOnline() },
+                    onOffsetChange = { viewModel.updateLyricsOffset(it) },
+                    onStartSync = { viewModel.startLyricsSync() },
+                    onFinalizeSync = { viewModel.finalizeLyricsSync() },
+                    onCancelSync = { viewModel.cancelLyricsSync() },
+                    currentPosition = uiState.currentPosition,
+                    onSeek = { viewModel.seekTo(it) },
+                    progress = queueSheetState.progress
+                )
+            }
+        }
+
+        if (showMoreOptions && uiState.currentTrack != null) {
+            val metadata = uiState.currentTrack!!.mediaMetadata
+            val albumId = metadata.extras?.getString("album_id")
+            val artistId = metadata.extras?.getString("artist_id")
+            val shareLink = metadata.extras?.getString("share_link")
+
+            MoreOptionsSheet(
+                title = metadata.title?.toString() ?: "Unknown",
+                subtitle = metadata.artist?.toString() ?: "Unknown",
+                thumbnailUrl = metadata.artworkUri?.toString() ?: "",
+                onDismiss = { showMoreOptions = false },
+                onAddToPlaylist = {
+                    showAddToPlaylist = true
+                    showMoreOptions = false
+                },
+                onViewAlbum = albumId?.let { id -> { onNavigateToAlbum(id); onClose() } },
+                onGoToArtist = artistId?.let { id -> { onNavigateToArtist(id); onClose() } },
+                onShare = {
+                    if (shareLink != null) {
+                        val sendIntent: Intent = Intent().apply {
+                            action = Intent.ACTION_SEND
+                            putExtra(Intent.EXTRA_TEXT, shareLink)
+                            type = "text/plain"
+                        }
+                        val shareIntent = Intent.createChooser(sendIntent, null)
+                        context.startActivity(shareIntent)
+                    } else {
+                        Toast.makeText(context, "Share link not available", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            )
+        }
+
+        if (showAddToPlaylist && uiState.currentTrack != null) {
+            val libraryViewModel: LibraryViewModel = hiltViewModel()
+            LaunchedEffect(Unit) {
+                libraryViewModel.onTabSelected(LibraryFilter.PLAYLISTS)
+            }
+            
+            AddToPlaylistSheet(
+                onDismiss = { showAddToPlaylist = false },
+                onPlaylistSelected = { playlistId ->
+                    viewModel.addToPlaylist(playlistId, uiState.currentTrack!!.mediaId)
+                    Toast.makeText(context, "Added to playlist", Toast.LENGTH_SHORT).show()
+                },
+                libraryViewModel = libraryViewModel
+            )
+        }
+    }
+}
+
+@Composable
+fun PlayerScreenBackground(
+    artworkUri: android.net.Uri?,
+    alpha: Float,
+    modifier: Modifier = Modifier
+) {
+    val colors = VynceTheme.colors
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .graphicsLayer { this.alpha = alpha }
+    ) {
+        // Blurred Artwork
+        SubcomposeAsyncImage(
+            model = artworkUri,
+            contentDescription = null,
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer {
+                    scaleX = 1.5f
+                    scaleY = 1.5f
+                }
+                .blur(radius = 100.dp),
+            contentScale = ContentScale.Crop,
+            loading = {
+                Box(modifier = Modifier.fillMaxSize().shimmerEffect())
+            },
+            error = {
+                Box(modifier = Modifier.fillMaxSize().background(colors.background))
+            }
+        )
+
+        // Overlays for readability and depth
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            Color.Black.copy(alpha = 0.3f),
+                            colors.background.copy(alpha = 0.8f),
+                            colors.background
+                        )
+                    )
+                )
+        )
     }
 }
 
@@ -451,11 +575,19 @@ fun PlayerScreen(
 @Composable
 fun TabbedQueueContent(
     uiState: PlayerUiState,
-    lyrics: String?,
+    isSyncing: Boolean = false,
+    syncProgress: Float = 0f,
     onPlayItem: (Int) -> Unit,
     onRemoveItem: (Int) -> Unit,
     onMoveItem: (Int, Int) -> Unit,
     onToggleAutoplay: () -> Unit,
+    onSearchOnline: () -> Unit = {},
+    onOffsetChange: (Int) -> Unit = {},
+    onStartSync: () -> Unit = {},
+    onFinalizeSync: () -> Unit = {},
+    onCancelSync: () -> Unit = {},
+    onSeek: (Long) -> Unit = {},
+    currentPosition: Long = 0L,
     progress: Float = 1f
 ) {
     val colors = VynceTheme.colors
@@ -554,7 +686,9 @@ fun TabbedQueueContent(
                 ) {
                     when (selectedTab) {
                         0 -> QueueTab(uiState, onPlayItem, onRemoveItem, onMoveItem, onToggleAutoplay)
-                        1 -> LyricsTab(lyrics)
+                        1 -> Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text("Lyrics not available", color = colors.textSecondary)
+                        }
                         2 -> RelatedTab(uiState.relatedSongs)
                     }
                 }
@@ -691,29 +825,6 @@ fun QueueTab(
                     }
                 }
             }
-        }
-    }
-}
-
-@Composable
-fun LyricsTab(lyrics: String?) {
-    val colors = VynceTheme.colors
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        item {
-            Text(
-                text = lyrics ?: "No lyrics available.",
-                style = VynceTheme.typography.body.copy(
-                    fontSize = 18.sp,
-                    lineHeight = 28.sp,
-                    fontWeight = FontWeight.Medium
-                ),
-                color = colors.textPrimary,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(vertical = 32.dp, horizontal = 16.dp)
-            )
         }
     }
 }

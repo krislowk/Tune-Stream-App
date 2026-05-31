@@ -12,16 +12,19 @@ sealed class YTItem {
     abstract val shareLink: String
 }
 
+@Serializable
 data class Artist(
     val name: String,
     val id: String?,
 )
 
+@Serializable
 data class Album(
     val name: String,
     val id: String,
 )
 
+@Serializable
 data class SongItem(
     override val id: String,
     override val title: String,
@@ -48,6 +51,7 @@ data class SongItem(
         get() = "https://music.youtube.com/watch?v=$id"
 }
 
+@Serializable
 data class AlbumItem(
     val browseId: String,
     val playlistId: String,
@@ -62,15 +66,16 @@ data class AlbumItem(
         get() = "https://music.youtube.com/playlist?list=$playlistId"
 }
 
+@Serializable
 data class PlaylistItem(
     override val id: String,
     override val title: String,
     val author: Artist?,
     val songCountText: String?,
     override val thumbnail: String?,
-    val playEndpoint: WatchEndpoint?,
-    val shuffleEndpoint: WatchEndpoint?,
-    val radioEndpoint: WatchEndpoint?,
+    val playEndpoint: WatchEndpoint? = null,
+    val shuffleEndpoint: WatchEndpoint? = null,
+    val radioEndpoint: WatchEndpoint? = null,
     val isEditable: Boolean = false,
     val isPodcast: Boolean = false,
     val description: String? = null,
@@ -82,14 +87,15 @@ data class PlaylistItem(
         get() = "https://music.youtube.com/playlist?list=$id"
 }
 
+@Serializable
 data class ArtistItem(
     override val id: String,
     override val title: String,
     override val thumbnail: String?,
     val channelId: String? = null,
     val playEndpoint: WatchEndpoint? = null,
-    val shuffleEndpoint: WatchEndpoint?,
-    val radioEndpoint: WatchEndpoint?,
+    val shuffleEndpoint: WatchEndpoint? = null,
+    val radioEndpoint: WatchEndpoint? = null,
     val isProfile: Boolean = false,
 ) : YTItem() {
     override val explicit: Boolean
@@ -98,14 +104,15 @@ data class ArtistItem(
         get() = "https://music.youtube.com/channel/$id"
 }
 
+@Serializable
 data class PodcastItem(
     override val id: String,
     override val title: String,
     val author: Artist?,
     val episodeCountText: String?,
     override val thumbnail: String?,
-    val playEndpoint: WatchEndpoint?,
-    val shuffleEndpoint: WatchEndpoint?,
+    val playEndpoint: WatchEndpoint? = null,
+    val shuffleEndpoint: WatchEndpoint? = null,
     val libraryAddToken: String? = null,
     val libraryRemoveToken: String? = null,
     val channelId: String? = null,
@@ -129,6 +136,7 @@ data class PodcastItem(
     )
 }
 
+@Serializable
 data class EpisodeItem(
     override val id: String,
     override val title: String,

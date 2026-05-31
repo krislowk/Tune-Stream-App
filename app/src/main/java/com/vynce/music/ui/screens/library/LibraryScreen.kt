@@ -88,9 +88,11 @@ fun LibraryScreen(
         LibraryFilter.PLAYLISTS,
         LibraryFilter.LOCAL_SONGS,
         LibraryFilter.LIKED_ALBUMS,
-        LibraryFilter.BOOKMARKED_ARTISTS
+        LibraryFilter.BOOKMARKED_ARTISTS,
+        LibraryFilter.PODCASTS,
+        LibraryFilter.HISTORY
     )
-    val tabNames = listOf("Liked", "Playlists", "Songs", "Albums", "Artists")
+    val tabNames = listOf("Liked", "Playlists", "Songs", "Albums", "Artists", "Podcasts", "History")
 
     Scaffold(
         topBar = {
@@ -220,6 +222,14 @@ fun LibraryScreen(
                                     )
                                 }
                             }
+                            LibraryFilter.PODCASTS -> {
+                                item {
+                                    PodcastGrid(
+                                        podcasts = state.items.filterIsInstance<com.vynce.music.db.entities.PodcastEntity>(),
+                                        onPodcastClick = { /* TODO: Navigate to Podcast */ }
+                                    )
+                                }
+                            }
                             LibraryFilter.PLAYLISTS, LibraryFilter.LIKED_ALBUMS -> {
                                 item {
                                     AlbumGrid(
@@ -240,9 +250,7 @@ fun LibraryScreen(
                                     )
                                     ListItem(
                                         item = songItem,
-                                        onClick = { playerViewModel.play(song.toMediaItem()) },
-                                        onSwipeRight = { playerViewModel.addToQueue(song.toMediaItem()) },
-                                        onSwipeLeft = { viewModel.toggleLike(song) }
+                                        onClick = { playerViewModel.play(song.toMediaItem()) }
                                     )
                                 }
                             }
@@ -339,6 +347,52 @@ fun ArtistGrid(
                     tint = VynceTheme.colors.textSecondary,
                     modifier = Modifier.size(20.dp)
                 )
+            }
+        }
+    }
+}
+
+@Composable
+fun PodcastGrid(
+    podcasts: List<com.vynce.music.db.entities.PodcastEntity>,
+    onPodcastClick: (String) -> Unit = {}
+) {
+    Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+        val chunked = podcasts.chunked(2)
+        chunked.forEach { row ->
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                row.forEach { podcast ->
+                    Column(modifier = Modifier.weight(1f).clickable { onPodcastClick(podcast.id) }) {
+                        AsyncImage(
+                            model = podcast.thumbnailUrl,
+                            contentDescription = null,
+                            modifier = Modifier
+                                .aspectRatio(1f)
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(VynceTheme.colors.surface),
+                            contentScale = ContentScale.Crop
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            text = podcast.title,
+                            style = VynceTheme.typography.body.copy(fontWeight = FontWeight.Bold),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = podcast.author ?: "Unknown Author",
+                            style = VynceTheme.typography.label,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+                if (row.size == 1) {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
             }
         }
     }

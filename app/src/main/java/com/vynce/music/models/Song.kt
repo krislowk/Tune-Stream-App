@@ -28,6 +28,7 @@ data class Song(
     val thumbnail: String = "",
     val isYoutube: Boolean = false,
     val isLiked: Boolean = false,
+    val lyricsOffset: Int = 0,
     val dateAdded: Long = System.currentTimeMillis()
 )
 

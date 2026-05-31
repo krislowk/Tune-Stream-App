@@ -128,6 +128,12 @@ fun PlaylistScreen(
                             }
                         }
                     },
+                    onLikeClick = { id, like ->
+                        viewModel.toggleLike(id, like)
+                    },
+                    onSyncClick = { browseId, playlistId ->
+                        viewModel.syncPlaylist(browseId, playlistId)
+                    },
                     onTrackClick = { song ->
                         playerViewModel.play(song.toMediaItem())
                     },
@@ -155,6 +161,11 @@ fun PlaylistScreen(
                     onAddToPlaylist = { 
                         Toast.makeText(context, "Added to playlist (Simulated)", Toast.LENGTH_SHORT).show()
                     },
+                    onRemoveFromPlaylist = {
+                        viewModel.removeFromPlaylist(id, item.id, id) {
+                            item.setVideoId
+                        }
+                    },
                     onViewAlbum = albumId?.let { id -> { onNavigateToAlbum(id) } },
                     onGoToArtist = artistId?.let { id -> { onNavigateToArtist(id) } },
                     onShare = { 
@@ -173,6 +184,8 @@ fun PlaylistContent(
     onShuffleClick: () -> Unit,
     onTrackClick: (SongItem) -> Unit,
     onMoreClick: (SongItem) -> Unit,
+    onLikeClick: (String, Boolean) -> Unit = { _, _ -> },
+    onSyncClick: (String, String) -> Unit = { _, _ -> },
     onSwipeRight: (SongItem) -> Unit = {}
 ) {
     LazyColumn(
@@ -183,7 +196,9 @@ fun PlaylistContent(
             PlaylistHeader(
                 playlist = playlist.playlist,
                 onPlayClick = onPlayClick,
-                onShuffleClick = onShuffleClick
+                onShuffleClick = onShuffleClick,
+                onLikeClick = onLikeClick,
+                onSyncClick = onSyncClick
             )
         }
 
@@ -191,8 +206,7 @@ fun PlaylistContent(
             ListItem(
                 item = song,
                 onClick = { onTrackClick(song) },
-                onMoreClick = { onMoreClick(song) },
-                onSwipeRight = { onSwipeRight(song) }
+                onMoreClick = { onMoreClick(song) }
             )
         }
     }
@@ -202,8 +216,12 @@ fun PlaylistContent(
 fun PlaylistHeader(
     playlist: PlaylistItem,
     onPlayClick: () -> Unit,
-    onShuffleClick: () -> Unit
+    onShuffleClick: () -> Unit,
+    onLikeClick: (String, Boolean) -> Unit = { _, _ -> },
+    onSyncClick: (String, String) -> Unit = { _, _ -> }
 ) {
+    var isLiked by remember { mutableStateOf(false) }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -300,6 +318,42 @@ fun PlaylistHeader(
                     contentDescription = "Shuffle",
                     tint = VynceTheme.colors.primary
                 )
+            }
+        }
+        
+        Spacer(Modifier.height(16.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Button(
+                onClick = { 
+                    isLiked = !isLiked
+                    onLikeClick(playlist.id, isLiked)
+                },
+                modifier = Modifier.weight(1f).height(48.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (isLiked) VynceTheme.colors.surface else VynceTheme.colors.primary,
+                    contentColor = if (isLiked) VynceTheme.colors.textPrimary else VynceTheme.colors.onPrimary
+                )
+            ) {
+                Text(if (isLiked) "Liked" else "Like Playlist", fontWeight = FontWeight.Bold)
+            }
+
+            Button(
+                onClick = { 
+                    onSyncClick(playlist.id, playlist.id) // Assuming browseId and local playlistId are same for now
+                },
+                modifier = Modifier.weight(1f).height(48.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = VynceTheme.colors.surface,
+                    contentColor = VynceTheme.colors.textPrimary
+                )
+            ) {
+                Text("Sync", fontWeight = FontWeight.Bold)
             }
         }
         

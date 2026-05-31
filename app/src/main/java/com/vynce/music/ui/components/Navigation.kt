@@ -24,6 +24,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -59,9 +61,8 @@ fun NavRail(
 
     Card(
         modifier = railModifier,
-        cornerRadius = 0.dp,
-        elevation = 7.dp,
-        backgroundColor = containerColor,
+        elevation = CardDefaults.cardElevation(),
+        colors = CardDefaults.cardColors(containerColor)
     ) {
         if (orientation == NavigationOrientation.Vertical) {
             Column(
@@ -303,7 +304,6 @@ fun NavigationPreview() {
 
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                cornerRadius = 12.dp
             ) {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                     TabItem(selected = true, text = "Artists", onClick = {}, modifier = Modifier.weight(1f))

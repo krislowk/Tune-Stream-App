@@ -1,24 +1,31 @@
 package com.vynce.music.ui.screens.settings
 
-import android.util.Log
 import androidx.datastore.preferences.core.Preferences
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vynce.music.repository.PreferenceRepository
 import com.vynce.music.repository.SongRepository
+import com.vynce.music.repository.UserRepository
 import com.vynce.music.repository.constants.PreferenceConstants
+import com.vynce.music.utils.SyncStatus
+import com.vynce.music.utils.SyncUtils
 import com.vynce.vynceclient.YouTube
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val preferenceRepository: PreferenceRepository,
-    private val songRepository: SongRepository
+    private val userRepository: UserRepository,
+    private val songRepository: SongRepository,
+    private val syncUtils: SyncUtils
 ) : ViewModel() {
 
     val language = MutableStateFlow(
@@ -62,17 +69,18 @@ class SettingsViewModel @Inject constructor(
             false
         )
     )
-    private val _isLoggedIn = MutableStateFlow(false)
-    val isLoggedIn: StateFlow<Boolean> = _isLoggedIn.asStateFlow()
+    
+    val currentUser = userRepository.currentUser.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5000),
+        null
+    )
 
-    private val _username = MutableStateFlow<String?>(null)
-    val username: StateFlow<String?> = _username.asStateFlow()
-
-    private val _userEmail = MutableStateFlow<String?>(null)
-    val userEmail: StateFlow<String?> = _userEmail.asStateFlow()
-
-    private val _userThumbnail = MutableStateFlow<String?>(null)
-    val userThumbnail: StateFlow<String?> = _userThumbnail.asStateFlow()
+    val isLoggedIn = currentUser.map { it != null }.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5000),
+        false
+    )
 
     // Preferences
     val audioQuality = MutableStateFlow(
@@ -162,111 +170,27 @@ class SettingsViewModel @Inject constructor(
     private val _isScanning = MutableStateFlow(false)
     val isScanning: StateFlow<Boolean> = _isScanning.asStateFlow()
 
+    val isSyncing: StateFlow<Boolean> = syncUtils.syncState
+        .map { it.overallStatus is SyncStatus.Syncing }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    private val _isDeepSyncing = MutableStateFlow(false)
+    val isDeepSyncing = _isDeepSyncing.asStateFlow()
+
     init {
         initializeSession()
     }
 
     private fun initializeSession() {
         viewModelScope.launch {
-
             preferenceRepository.ensureInitialized()
-
-            val cookie = preferenceRepository.getCookie()
-            val visitorData = preferenceRepository.getVisitorData()
-
-            Log.d(
-                "SettingsViewModel",
-                "Initialized session cookie=${cookie != null}"
-            )
-
-            YouTube.cookie = cookie
-            YouTube.visitorData = visitorData ?: ""
-            YouTube.useLoginForBrowse = useLoginForBrowse.value
-
-            if (!cookie.isNullOrBlank()) {
-                refreshAccountInfo()
-            }
+            userRepository.refreshAccountInfo()
         }
     }
 
     fun refreshAccountInfo() {
-
-        val cookie = YouTube.cookie
-
-        if (cookie.isNullOrBlank()) {
-            _isLoggedIn.value = false
-            return
-        }
-
         viewModelScope.launch {
-
-            try {
-
-                Log.d("SettingsViewModel", "Refreshing account info")
-
-                if (
-                    YouTube.visitorData?.isBlank() == true ||
-                    YouTube.visitorData == YouTube.DEFAULT_VISITOR_DATA
-                ) {
-
-                    Log.d(
-                        "SettingsViewModel",
-                        "Fetching fresh visitorData"
-                    )
-
-                    YouTube.visitorData()
-                        .onSuccess { data ->
-
-                            Log.d(
-                                "SettingsViewModel",
-                                "visitorData fetched: $data"
-                            )
-
-                            preferenceRepository.saveVisitorData(data)
-                        }
-                        .onFailure {
-                            Log.e(
-                                "SettingsViewModel",
-                                "visitorData fetch failed",
-                                it
-                            )
-                        }
-                }
-
-                YouTube.accountInfo()
-                    .onSuccess { info ->
-
-                        Log.d(
-                            "SettingsViewModel",
-                            "Logged in as ${info.name}"
-                        )
-
-                        _username.value = info.name
-                        _userEmail.value = info.email
-                        _userThumbnail.value = info.thumbnailUrl
-                        _isLoggedIn.value = true
-                    }
-                    .onFailure { error ->
-
-                        Log.e(
-                            "SettingsViewModel",
-                            "accountInfo failed",
-                            error
-                        )
-
-                        _isLoggedIn.value = false
-                    }
-
-            } catch (e: Exception) {
-
-                Log.e(
-                    "SettingsViewModel",
-                    "refreshAccountInfo crash",
-                    e
-                )
-
-                _isLoggedIn.value = false
-            }
+            userRepository.refreshAccountInfo()
         }
     }
 
@@ -274,71 +198,14 @@ class SettingsViewModel @Inject constructor(
         cookie: String,
         visitorData: String? = null
     ) {
-
         viewModelScope.launch {
-
-            try {
-
-                Log.d(
-                    "SettingsViewModel",
-                    "Starting login flow"
-                )
-
-                preferenceRepository.saveCookie(cookie)
-
-                if (!visitorData.isNullOrBlank()) {
-
-                    preferenceRepository.saveVisitorData(
-                        visitorData
-                    )
-
-                } else {
-
-                    Log.d(
-                        "SettingsViewModel",
-                        "No visitorData supplied, fetching"
-                    )
-
-                    YouTube.visitorData()
-                        .onSuccess { data ->
-
-                            preferenceRepository.saveVisitorData(
-                                data
-                            )
-                        }
-                        .onFailure {
-
-                            Log.e(
-                                "SettingsViewModel",
-                                "visitorData fetch failed",
-                                it
-                            )
-                        }
-                }
-
-                refreshAccountInfo()
-
-            } catch (e: Exception) {
-
-                Log.e(
-                    "SettingsViewModel",
-                    "Login failed",
-                    e
-                )
-            }
+            userRepository.login(cookie, visitorData)
         }
     }
 
     fun logout() {
-
         viewModelScope.launch {
-
-            preferenceRepository.clearSession()
-
-            _isLoggedIn.value = false
-            _username.value = null
-            _userEmail.value = null
-            _userThumbnail.value = null
+            userRepository.logout()
         }
     }
 
@@ -367,16 +234,84 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun scanLocalSongs() {
-
         viewModelScope.launch {
-
             _isScanning.value = true
-
             try {
                 songRepository.scanLocalSongs()
             } finally {
                 _isScanning.value = false
             }
+        }
+    }
+
+    fun syncOnlineData() {
+        syncUtils.runAllSyncs()
+    }
+
+    fun cleanupDuplicates() {
+        syncUtils.cleanupDuplicatePlaylists()
+    }
+
+    fun syncAllAlbums() {
+        syncUtils.syncAllAlbums()
+    }
+
+    fun syncLikedSongs() = syncUtils.syncLikedSongs()
+    fun syncLibrarySongs() = syncUtils.syncLibrarySongs()
+    fun syncUploadedSongs() = syncUtils.syncUploadedSongs()
+    fun syncLikedAlbums() = syncUtils.syncLikedAlbums()
+    fun syncUploadedAlbums() = syncUtils.syncUploadedAlbums()
+    fun syncArtists() = syncUtils.syncArtistsSubscriptions()
+    fun syncPlaylists() = syncUtils.syncSavedPlaylists()
+    fun syncAutoPlaylists() = syncUtils.syncAutoSyncPlaylists()
+
+    fun syncAllArtists() {
+        syncUtils.syncAllArtists()
+    }
+
+    fun syncPodcasts() {
+        syncUtils.syncPodcastSubscriptions()
+        syncUtils.syncEpisodesForLater()
+    }
+
+    fun clearPodcastData() {
+        syncUtils.clearPodcastData()
+    }
+
+    fun cancelAllSyncs() {
+        syncUtils.cancelAllSyncs()
+    }
+
+    fun deepSync() {
+        viewModelScope.launch {
+            _isDeepSyncing.value = true
+            try {
+                syncUtils.performFullSyncSuspend()
+                syncUtils.syncLikedSongsSuspend()
+                syncUtils.syncLibrarySongsSuspend()
+                syncUtils.syncUploadedSongsSuspend()
+                syncUtils.syncLikedAlbumsSuspend()
+                syncUtils.syncUploadedAlbumsSuspend()
+                syncUtils.syncArtistsSubscriptionsSuspend()
+                syncUtils.syncPodcastSubscriptionsSuspend()
+                syncUtils.syncEpisodesForLaterSuspend()
+                syncUtils.syncSavedPlaylistsSuspend()
+                syncUtils.syncAutoSyncPlaylistsSuspend()
+                syncUtils.cleanupDuplicatePlaylistsSuspend()
+            } finally {
+                _isDeepSyncing.value = false
+            }
+        }
+    }
+
+    fun clearAllSynced() {
+        syncUtils.clearAllSyncedContent()
+    }
+
+    fun clearAllLibraryData() {
+        viewModelScope.launch {
+            syncUtils.clearAllSyncedContentSuspend()
+            syncUtils.clearAllLibraryData()
         }
     }
 
@@ -422,6 +357,14 @@ class SettingsViewModel @Inject constructor(
             PreferenceConstants.CONTENT_REGION,
             contentRegion,
             region
+        )
+    }
+
+    fun setCrossfadeDuration(duration: Int) {
+        updatePreference(
+            PreferenceConstants.CROSSFADE_DURATION,
+            crossfadeDuration,
+            duration
         )
     }
 

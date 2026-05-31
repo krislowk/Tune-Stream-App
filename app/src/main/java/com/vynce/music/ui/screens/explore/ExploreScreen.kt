@@ -16,7 +16,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CircularProgressIndicator
@@ -25,6 +25,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -36,7 +37,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import com.vynce.music.ui.components.CarouselList
+import com.vynce.music.ui.components.CarouselRow
 import com.vynce.music.ui.components.SectionHeader
 import com.vynce.music.ui.theme.VynceTheme
 import com.vynce.vynceclient.models.AlbumItem
@@ -50,6 +51,7 @@ fun ExploreScreen(
 ) {
     val exploreData by viewModel.exploreData.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+    val isLoadingMore by viewModel.isLoadingMore.collectAsState()
     val colors = VynceTheme.colors
 
     Scaffold(
@@ -92,7 +94,7 @@ fun ExploreScreen(
                         contentPadding = PaddingValues(bottom = 88.dp)
                     ) {
                         item {
-                            CarouselList(
+                            CarouselRow(
                                 title = "New Releases",
                                 items = data.newReleaseAlbums,
                                 onItemClick = { item -> onItemClick("album", (item as AlbumItem).browseId) }
@@ -109,8 +111,24 @@ fun ExploreScreen(
                                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                                 modifier = Modifier.padding(bottom = 24.dp)
                             ) {
-                                items(data.moodAndGenres) { mood ->
+                                itemsIndexed(data.moodAndGenres) { index, mood ->
+                                    if (index >= data.moodAndGenres.size - 1) {
+                                        LaunchedEffect(Unit) {
+                                            viewModel.loadMore()
+                                        }
+                                    }
                                     MoodCard(mood = mood)
+                                }
+                            }
+                        }
+
+                        if (isLoadingMore) {
+                            item {
+                                Box(
+                                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    CircularProgressIndicator(color = colors.primary, modifier = Modifier.size(24.dp))
                                 }
                             }
                         }

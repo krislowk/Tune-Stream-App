@@ -4,11 +4,12 @@ import com.vynce.music.db.daos.DatabaseDao
 import com.vynce.music.db.entities.Album
 import com.vynce.music.db.entities.Artist
 import com.vynce.music.db.entities.Playlist
+import com.vynce.music.db.entities.SongEntity
 import com.vynce.music.models.History
 import com.vynce.music.models.Song
 import com.vynce.music.models.SongItem
 import com.vynce.music.provider.LocalProvider
-import com.vynce.music.provider.YoutubeProvider
+import com.vynce.music.utils.SyncUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -20,19 +21,17 @@ import javax.inject.Singleton
 @Singleton
 class SongRepository @Inject constructor(
     private val databaseDao: DatabaseDao,
-    private val youtubeProvider: YoutubeProvider,
-    private val localProvider: LocalProvider
+    private val localProvider: LocalProvider,
+    private val syncUtils: SyncUtils
 ) {
     // --- Optimized History ---
     fun getHistory(): Flow<List<History>> = databaseDao.getHistory()
         .distinctUntilChanged()
 
     // --- Optimized Song Queries ---
-    // Returns full entities for detail screens
     fun getAllSongs(): Flow<List<Song>> = databaseDao.getAllSongsFlow()
         .distinctUntilChanged()
 
-    // Returns lightweight items for list screens (minimizes recomposition and memory)
     fun getAllSongItems(): Flow<List<SongItem>> = databaseDao.getAllSongItemsFlow()
         .distinctUntilChanged()
 
@@ -49,6 +48,9 @@ class SongRepository @Inject constructor(
     fun getBookmarkedArtists(): Flow<List<Artist>> = databaseDao.artistsBookmarkedByNameAsc()
         .distinctUntilChanged()
 
+    fun getSubscribedPodcasts(): Flow<List<com.vynce.music.db.entities.PodcastEntity>> = databaseDao.subscribedPodcasts()
+        .distinctUntilChanged()
+
     fun getPlaylists(): Flow<List<Playlist>> = databaseDao.playlistsByNameAsc()
         .distinctUntilChanged()
 
@@ -58,12 +60,29 @@ class SongRepository @Inject constructor(
     suspend fun getSongByMediaId(mediaId: String): Song? = databaseDao.getSongByMediaId(mediaId)
 
     suspend fun toggleLike(song: Song) {
+        val isCurrentlyLiked = isLiked(song.mediaId)
+        val newLikedState = !isCurrentlyLiked
+
         val current = databaseDao.getSongByMediaId(song.mediaId)
         if (current != null) {
             databaseDao.toggleLike(song.mediaId)
         } else {
             databaseDao.upsert(song.copy(isLiked = true))
         }
+
+        // Use SyncUtils for reliable online sync
+        syncUtils.likeSong(
+            SongEntity(
+                id = song.mediaId,
+                title = song.title,
+                liked = newLikedState,
+                lyricsOffset = song.lyricsOffset
+            )
+        )
+    }
+
+    suspend fun updateLyricsOffset(mediaId: String, offset: Int) {
+        databaseDao.updateLyricsOffset(mediaId, offset)
     }
 
     suspend fun isLiked(mediaId: String): Boolean {
@@ -106,16 +125,7 @@ class SongRepository @Inject constructor(
             }
         }
     }
+
+    // --- Sync ---
+    // Moved to SyncUtils for more robust implementation
 }
-
-
-
-
-
-
-
-
-
-
-
-

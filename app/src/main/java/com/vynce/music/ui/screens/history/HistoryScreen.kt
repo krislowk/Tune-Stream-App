@@ -106,8 +106,7 @@ fun HistoryScreen(
                     )
                     ListItem(
                         item = songItem,
-                        onClick = { playerViewModel.play(song.toMediaItem()) },
-                        onSwipeRight = { playerViewModel.addToQueue(song.toMediaItem()) }
+                        onClick = { playerViewModel.play(song.toMediaItem()) }
                     )
                 }
             }

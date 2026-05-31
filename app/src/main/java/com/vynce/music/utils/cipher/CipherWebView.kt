@@ -561,7 +561,7 @@ function discoverAndInit() {
     }
 
     companion object {
-        private const val TAG = "Metrolist_CipherWebView"
+        private const val TAG = "Vynce_CipherWebView"
         private const val JS_INTERFACE = "CipherBridge"
 
         suspend fun create(

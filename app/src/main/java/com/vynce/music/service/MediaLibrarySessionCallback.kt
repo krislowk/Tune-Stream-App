@@ -1,6 +1,7 @@
 package com.vynce.music.service
 
 import android.content.Context
+import android.os.Bundle
 import androidx.core.net.toUri
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
@@ -16,7 +17,7 @@ import com.vynce.music.repository.PreferenceRepository
 import com.vynce.music.repository.SongRepository
 import com.vynce.music.repository.constants.AudioQuality
 import com.vynce.music.repository.constants.PreferenceConstants
-import com.vynce.music.utils.NetworkConnectivityManager
+import com.vynce.music.service.manager.NetworkConnectivityManager
 import com.vynce.music.utils.YTPlayerUtils
 import com.vynce.music.utils.toMediaItem
 import kotlinx.coroutines.CoroutineScope
@@ -43,23 +44,39 @@ class MediaLibrarySessionCallback(
         mediaItems: MutableList<MediaItem>
     ): ListenableFuture<MutableList<MediaItem>> {
         return scope.future {
-            val resolvedItems = mediaItems.map { item ->
-                if (item.localConfiguration?.uri != null) {
-                    item
-                } else {
+            val audioQuality = getPreferredAudioQuality()
+            
+            // Only resolve URIs immediately for the first item being added or if it's a single item.
+            // For subsequent items in a batch, we resolve them lazily in the MusicService
+            // to avoid fetching many URLs at once, which leads to "fetching without stopping" behavior.
+            val resolvedItems = mediaItems.mapIndexed { index, item ->
+                val uri = item.localConfiguration?.uri
+                val needsResolution = (uri == null || uri == android.net.Uri.EMPTY) && index == 0
+                
+                if (needsResolution) {
                     val videoId = item.mediaId
                     val playlistId = item.mediaMetadata.extras?.getString("playlist_id")
-                    
-                    val audioQuality = getPreferredAudioQuality()
-                    val streamUrl = getStreamUrl(videoId, playlistId, audioQuality)
+                    val playbackData = getPlaybackData(videoId, playlistId, audioQuality)
 
-                    if (streamUrl != null) {
+                    if (playbackData?.streamUrl != null) {
+                        val extras = item.mediaMetadata.extras?.let { Bundle(it) } ?: Bundle()
+                        playbackData.audioConfig?.loudnessDb?.let {
+                            extras.putDouble("loudness_db", it)
+                        }
+
                         item.buildUpon()
-                            .setUri(streamUrl.toUri())
+                            .setUri(playbackData.streamUrl.toUri())
+                            .setMediaMetadata(
+                                item.mediaMetadata.buildUpon()
+                                    .setExtras(extras)
+                                    .build()
+                            )
                             .build()
                     } else {
                         item
                     }
+                } else {
+                    item
                 }
             }
             resolvedItems.toMutableList()
@@ -75,11 +92,11 @@ class MediaLibrarySessionCallback(
         }
     }
 
-    private suspend fun getStreamUrl(
+    private suspend fun getPlaybackData(
         videoId: String,
         playlistId: String?,
         audioQuality: AudioQuality = AudioQuality.HIGH
-    ): String? = withContext(Dispatchers.IO) {
+    ): YTPlayerUtils.PlaybackData? = withContext(Dispatchers.IO) {
         val playbackData = YTPlayerUtils.playerResponseForPlayback(
             videoId = videoId,
             playlistId = playlistId,
@@ -87,8 +104,8 @@ class MediaLibrarySessionCallback(
             connectivityManager = connectivityManager
         ).getOrNull()
         
-        println("Resolved stream URL for $videoId: ${playbackData?.streamUrl}")
-        playbackData?.streamUrl
+        println("Resolved stream URL for $videoId: ${playbackData?.streamUrl}, loudness: ${playbackData?.audioConfig?.loudnessDb}")
+        playbackData
     }
 
     override fun onGetLibraryRoot(

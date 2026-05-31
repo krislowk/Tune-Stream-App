@@ -5,6 +5,7 @@ import com.vynce.vynceclient.models.Artist
 import com.vynce.vynceclient.models.MusicResponsiveListItemRenderer
 import com.vynce.vynceclient.models.PlaylistItem
 import com.vynce.vynceclient.models.SongItem
+import com.vynce.vynceclient.models.clean
 import com.vynce.vynceclient.models.oddElements
 import com.vynce.vynceclient.models.splitBySeparator
 import com.vynce.vynceclient.utils.parseTime
@@ -20,13 +21,13 @@ data class PlaylistPage(
             // Extract library tokens using the new method that properly handles multiple toggle items
             val libraryTokens = PageHelper.extractLibraryTokensFromMenuItems(renderer.menu?.menuRenderer?.items)
 
-            // Split the secondary line by bullet separator to separate artists from other metadata (like views)
             val secondaryLineRuns = renderer.flexColumns
                 .getOrNull(1)
                 ?.musicResponsiveListItemFlexColumnRenderer
                 ?.text
                 ?.runs
                 ?.splitBySeparator()
+                ?.clean()
 
             return SongItem(
                 id = renderer.playlistItemData?.videoId ?: return null,

@@ -28,14 +28,14 @@ class YoutubeProvider @Inject constructor(){
             .onFailure { throw it }
     }.flowOn(Dispatchers.IO)
 
-    fun getHome(params: String? = null) = flow {
-        YouTube.home(params = params)
+    fun getHome(params: String? = null, continuation: String? = null) = flow {
+        YouTube.home(params = params, continuation = continuation)
             .onSuccess { emit(it) }
             .onFailure { throw it }
     }.flowOn(Dispatchers.IO)
 
-    fun getExplore() = flow {
-        YouTube.explore()
+    fun getExplore(continuation: String? = null) = flow {
+        YouTube.explore(continuation = continuation)
             .onSuccess { emit(it) }
             .onFailure { throw it }
     }.flowOn(Dispatchers.IO)
@@ -46,8 +46,26 @@ class YoutubeProvider @Inject constructor(){
             .onFailure { throw it }
     }.flowOn(Dispatchers.IO)
 
+    fun searchContinuation(continuation: String) = flow {
+        YouTube.searchContinuation(continuation)
+            .onSuccess { emit(it) }
+            .onFailure { throw it }
+    }.flowOn(Dispatchers.IO)
+
     fun getSuggestions(query: String) = flow {
         YouTube.searchSuggestions(query)
+            .onSuccess { emit(it) }
+            .onFailure { throw it }
+    }.flowOn(Dispatchers.IO)
+
+    fun likeVideo(videoId: String, like: Boolean) = flow {
+        YouTube.likeVideo(videoId, like)
+            .onSuccess { emit(it) }
+            .onFailure { throw it }
+    }.flowOn(Dispatchers.IO)
+
+    fun library(browseId: String) = flow {
+        YouTube.library(browseId)
             .onSuccess { emit(it) }
             .onFailure { throw it }
     }.flowOn(Dispatchers.IO)

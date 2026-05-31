@@ -8,6 +8,7 @@ import com.vynce.vynceclient.models.MusicTwoRowItemRenderer
 import com.vynce.vynceclient.models.PlaylistItem
 import com.vynce.vynceclient.models.SongItem
 import com.vynce.vynceclient.models.YTItem
+import com.vynce.vynceclient.models.clean
 import com.vynce.vynceclient.models.oddElements
 import com.vynce.vynceclient.models.splitBySeparator
 import com.vynce.vynceclient.utils.parseTime
@@ -19,23 +20,31 @@ data class ArtistItemsPage(
 ) {
     companion object {
         fun fromMusicResponsiveListItemRenderer(renderer: MusicResponsiveListItemRenderer): SongItem? {
+            val secondaryLine = renderer.flexColumns.getOrNull(1)
+                ?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.splitBySeparator()
+                ?: return null
+            val thirdLine = renderer.flexColumns.getOrNull(2)
+                ?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.splitBySeparator()
+                ?: emptyList()
+            val listRun = (secondaryLine + thirdLine).clean()
+
             return SongItem(
                 id = renderer.playlistItemData?.videoId ?: return null,
                 title = renderer.flexColumns.firstOrNull()
                     ?.musicResponsiveListItemFlexColumnRenderer?.text
                     ?.runs?.firstOrNull()?.text ?: return null,
-                artists = renderer.flexColumns.getOrNull(1)?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.oddElements()
+                artists = listRun.getOrNull(0)?.oddElements()
                     ?.map {
                         Artist(
                             name = it.text,
                             id = it.navigationEndpoint?.browseEndpoint?.browseId
                         )
                     } ?: return null,
-                album = renderer.flexColumns.getOrNull(3)?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.firstOrNull()
+                album = listRun.getOrNull(1)?.firstOrNull()
                     ?.let {
                         Album(
                             name = it.text,
-                            id = it.navigationEndpoint?.browseEndpoint?.browseId ?: return null
+                            id = it.navigationEndpoint?.browseEndpoint?.browseId ?: return@let null
                         )
                     },
                 duration = renderer.fixedColumns?.firstOrNull()

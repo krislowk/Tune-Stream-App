@@ -66,6 +66,7 @@ sealed class SyncOperation {
     data object SavedPlaylists : SyncOperation()
     data object AutoSyncPlaylists : SyncOperation()
     data class SinglePlaylist(val browseId: String, val playlistId: String) : SyncOperation()
+    data class LikePlaylist(val playlistId: String, val like: Boolean) : SyncOperation()
     data class LikeSong(val song: SongEntity) : SyncOperation()
     data class SubscribeChannel(val channelId: String, val subscribe: Boolean) : SyncOperation()
     data class SavePodcast(val podcastId: String, val save: Boolean) : SyncOperation()
@@ -179,6 +180,7 @@ class SyncUtils @Inject constructor(
             is SyncOperation.SavedPlaylists -> executeSyncSavedPlaylists()
             is SyncOperation.AutoSyncPlaylists -> executeSyncAutoSyncPlaylists()
             is SyncOperation.SinglePlaylist -> executeSyncPlaylist(operation.browseId, operation.playlistId)
+            is SyncOperation.LikePlaylist -> executeLikePlaylist(operation.playlistId, operation.like)
             is SyncOperation.LikeSong -> executeLikeSong(operation.song)
             is SyncOperation.SubscribeChannel -> executeSubscribeChannel(operation.channelId, operation.subscribe)
             is SyncOperation.SavePodcast -> executeSavePodcast(operation.podcastId, operation.save)
@@ -254,6 +256,14 @@ class SyncUtils @Inject constructor(
     }
 
     fun runAllSyncs() = performFullSync()
+
+    fun syncPlaylist(browseId: String, playlistId: String) {
+        syncScope.launch { syncChannel.send(SyncOperation.SinglePlaylist(browseId, playlistId)) }
+    }
+
+    fun likePlaylist(playlistId: String, like: Boolean) {
+        syncScope.launch { syncChannel.send(SyncOperation.LikePlaylist(playlistId, like)) }
+    }
 
     fun likeSong(s: SongEntity) {
         syncScope.launch { syncChannel.send(SyncOperation.LikeSong(s)) }
@@ -433,6 +443,11 @@ class SyncUtils @Inject constructor(
             Log.e(TAG, "Error during full sync", e)
             updateState { copy(overallStatus = SyncStatus.Error(e.message ?: "Unknown error"), currentOperation = "") }
         }
+    }
+
+    private suspend fun executeLikePlaylist(playlistId: String, like: Boolean) = withContext(Dispatchers.IO) {
+        if (!isLoggedIn()) return@withContext
+        withRetry { YouTube.likePlaylist(playlistId, like) }
     }
 
     private suspend fun executeLikeSong(s: SongEntity) = withContext(Dispatchers.IO) {

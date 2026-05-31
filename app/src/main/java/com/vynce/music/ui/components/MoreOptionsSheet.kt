@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.Album
+import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -50,6 +51,7 @@ fun MoreOptionsSheet(
     thumbnailUrl: String,
     onDismiss: () -> Unit,
     onAddToPlaylist: () -> Unit = {},
+    onRemoveFromPlaylist: (() -> Unit)? = null,
     onViewAlbum: (() -> Unit)? = null,
     onGoToArtist: (() -> Unit)? = null,
     onShare: () -> Unit = {}
@@ -133,6 +135,17 @@ fun MoreOptionsSheet(
                     onDismiss()
                 }
             )
+
+            if (onRemoveFromPlaylist != null) {
+                OptionItem(
+                    title = "Remove from Playlist",
+                    icon = Icons.Default.DeleteSweep,
+                    onClick = {
+                        onRemoveFromPlaylist()
+                        onDismiss()
+                    }
+                )
+            }
 
             if (onViewAlbum != null) {
                 OptionItem(

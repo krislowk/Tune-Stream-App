@@ -6,6 +6,7 @@ import com.vynce.music.models.Song
 import com.vynce.music.repository.SongRepository
 import com.vynce.music.repository.UserRepository
 import com.vynce.music.repository.constants.LibraryFilter
+import com.vynce.music.utils.SyncUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -23,6 +24,7 @@ import javax.inject.Inject
 @HiltViewModel
 class LibraryViewModel @Inject constructor(
     private val songRepository: SongRepository,
+    private val syncUtils: SyncUtils,
     userRepository: UserRepository
 ) : ViewModel() {
 
@@ -60,7 +62,13 @@ class LibraryViewModel @Inject constructor(
             LibraryFilter.LOCAL_SONGS -> songRepository.getLocalSongs()
             LibraryFilter.LIKED_ALBUMS -> songRepository.getLikedAlbums()
             LibraryFilter.BOOKMARKED_ARTISTS -> songRepository.getBookmarkedArtists()
+            LibraryFilter.PODCASTS -> songRepository.getSubscribedPodcasts()
             LibraryFilter.ALL_SONGS -> songRepository.getAllSongs()
+            LibraryFilter.HISTORY -> songRepository.getHistory().map { historyList ->
+                historyList.mapNotNull { history ->
+                    songRepository.getSongByMediaId(history.mediaId)
+                }
+            }
         }
         
         itemsFlow.map { items: List<Any> ->
@@ -122,6 +130,14 @@ class LibraryViewModel @Inject constructor(
                 _isScanning.value = false
             }
         }
+    }
+
+    fun togglePodcastSave(podcastId: String, save: Boolean) {
+        syncUtils.savePodcast(podcastId, save)
+    }
+
+    fun toggleEpisodeSave(episodeId: String, save: Boolean, setVideoId: String? = null) {
+        syncUtils.saveEpisode(episodeId, save, setVideoId)
     }
 }
 

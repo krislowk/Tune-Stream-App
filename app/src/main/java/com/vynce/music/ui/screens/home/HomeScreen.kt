@@ -18,10 +18,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.WifiOff
 import androidx.compose.material3.Button
@@ -32,20 +33,27 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.AndroidUiModes.UI_MODE_NIGHT_YES
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.util.UnstableApi
-import com.vynce.music.ui.components.CarouselList
-import com.vynce.music.ui.components.QuickPicksCarousel
+import coil.compose.SubcomposeAsyncImage
+import com.vynce.music.ui.components.ArtistCarousel
+import com.vynce.music.ui.components.CarouselColumn
+import com.vynce.music.ui.components.CarouselRow
+import com.vynce.music.ui.components.CommunityCarousel
 import com.vynce.music.ui.screens.player.PlayerViewModel
 import com.vynce.music.ui.theme.VynceTheme
 import com.vynce.music.utils.shimmerEffect
@@ -56,6 +64,7 @@ import com.vynce.vynceclient.models.AlbumItem
 import com.vynce.vynceclient.models.ArtistItem
 import com.vynce.vynceclient.models.PlaylistItem
 import com.vynce.vynceclient.models.SongItem
+import com.vynce.vynceclient.pages.HomePage
 
 @UnstableApi
 @Composable
@@ -65,98 +74,228 @@ fun HomeScreen(
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val refreshing = viewModel.refreshing
+    val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
+    val selectedChip by viewModel.selectedChip.collectAsStateWithLifecycle()
+    val currentUser by viewModel.currentUser.collectAsStateWithLifecycle()
 
-    PullToRefreshBox(
-        isRefreshing = refreshing,
+    HomeScreenContent(
+        uiState = uiState,
+        isRefreshing = isRefreshing,
+        selectedChip = selectedChip,
+        currentUser = currentUser,
         onRefresh = { viewModel.refresh() },
+        onFilterSelected = { viewModel.onFilterSelected(it) },
+        onItemClick = { item -> handleItemClick(item, onItemClick, playerViewModel) },
+        onPlayAllClick = { songs -> playerViewModel.playAll(songs.map { it.toMediaItem() }) },
+        onAddToQueue = { playerViewModel.addToQueue(it.toMediaItem()) },
+        onLoadMore = { viewModel.loadMore() }
+    )
+}
+
+@UnstableApi
+@Composable
+fun HomeScreenContent(
+    uiState: HomeUiState,
+    isRefreshing: Boolean,
+    selectedChip: HomePage.Chip?,
+    currentUser: com.vynce.music.models.User?,
+    onRefresh: () -> Unit,
+    onFilterSelected: (HomePage.Chip?) -> Unit,
+    onItemClick: (com.vynce.vynceclient.models.YTItem) -> Unit,
+    onPlayAllClick: (List<SongItem>) -> Unit,
+    onAddToQueue: (SongItem) -> Unit,
+    onLoadMore: () -> Unit
+) {
+    PullToRefreshBox(
+        isRefreshing = isRefreshing,
+        onRefresh = onRefresh,
         modifier = Modifier.fillMaxSize()
     ) {
-        Box(modifier = Modifier.fillMaxSize().background(VynceTheme.colors.background)) {
-            when (val state = uiState) {
+        Box(modifier = Modifier.fillMaxSize().statusBarsPadding().background(VynceTheme.colors.background)) {
+            when (uiState) {
                 is HomeUiState.Loading -> HomeSkeleton()
                 is HomeUiState.Error -> ErrorState(
-                    message = state.message,
-                    onRetry = { viewModel.refresh() }
+                    message = uiState.message,
+                    onRetry = onRefresh
                 )
                 is HomeUiState.Success -> {
+                    val sections = remember(uiState.data.sections) {
+                        uiState.data.sections.sortedByDescending { section ->
+                            val title = section.title?.lowercase() ?: ""
+                            if (title.contains("quick picks")) 1 else 0
+                        }
+                    }
+
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(bottom = 88.dp)
                     ) {
                         item {
-                            HomeTopBar()
+                            Row(modifier = Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    val greeting = remember { getGreeting() }
+                                    Text(
+                                        text = greeting,
+                                        style = VynceTheme.typography.title.copy(
+                                            fontSize = 32.sp,
+                                            fontWeight = FontWeight.Black,
+                                            letterSpacing = (-1).sp
+                                        ),
+                                        color = VynceTheme.colors.textPrimary
+                                    )
+                                    Text(
+                                        text = "Discover your rhythm today",
+                                        style = VynceTheme.typography.label,
+                                        color = VynceTheme.colors.textSecondary
+                                    )
+                                }
+                                Box(modifier = Modifier
+                                    .size(44.dp)
+                                    .clip(CircleShape)
+                                    .background(VynceTheme.colors.glassSurface)
+                                    .padding(2.dp),
+                                    contentAlignment = Alignment.Center) {
+                                    if (currentUser?.avatarUrl != null) {
+                                        SubcomposeAsyncImage(
+                                            model = currentUser.avatarUrl,
+                                            contentDescription = "Account",
+                                            modifier = Modifier.fillMaxSize().clip(CircleShape),
+                                            contentScale = ContentScale.Crop,
+                                            loading = {
+                                                Box(modifier = Modifier.fillMaxSize().shimmerEffect())
+                                            },
+                                            error = {
+                                                Icon(imageVector = Icons.Default.AccountCircle, "Account", tint = VynceTheme.colors.textPrimary)
+                                            }
+                                        )
+                                    } else {
+                                        Icon(imageVector = Icons.Default.AccountCircle, "Account", tint = VynceTheme.colors.textPrimary)
+                                    }
+                                }
+                            }
                         }
 
-                        if (state.data.filters.isNotEmpty()) {
+                        if (uiState.data.filters.isNotEmpty()) {
                             item {
                                 LazyRow(
                                     contentPadding = PaddingValues(horizontal = 16.dp),
                                     horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                    modifier = Modifier.padding(bottom = 16.dp)
+                                    modifier = Modifier.fillMaxWidth()
                                 ) {
-                                    items(
-                                        items = state.data.filters,
-                                        key = { it.title }
-                                    ) { filter ->
+                                    item {
                                         FilterChip(
-                                            selected = filter.isSelected,
-                                            onClick = { viewModel.onFilterSelected(filter) },
-                                            label = { Text(filter.title) },
+                                            selected = selectedChip == null,
+                                            onClick = { onFilterSelected(null) },
+                                            label = { Text("All") },
+                                            shape = RoundedCornerShape(48.dp),
+                                            border = BorderStroke(
+                                                if (selectedChip == null) 0.dp else 1.dp,
+                                                VynceTheme.colors.glassBorder
+                                            ),
                                             colors = FilterChipDefaults.filterChipColors(
-                                                selectedContainerColor = VynceTheme.colors.onPrimary,
+                                                selectedContainerColor = VynceTheme.colors.primary,
                                                 selectedLabelColor = VynceTheme.colors.onPrimary,
                                                 containerColor = VynceTheme.colors.surface,
                                                 labelColor = VynceTheme.colors.textSecondary
+                                            )
+                                        )
+                                    }
+                                    items(uiState.data.filters, key = { it.title }) { filter ->
+                                        FilterChip(
+                                            selected = filter.title == selectedChip?.title,
+                                            onClick = { onFilterSelected(filter) },
+                                            label = { Text(filter.title) },
+                                            shape = RoundedCornerShape(48.dp),
+                                            border = BorderStroke(
+                                                if (filter.title == selectedChip?.title) 0.dp else 1.dp,
+                                                VynceTheme.colors.glassBorder
                                             ),
-                                            border = if (filter.isSelected )BorderStroke(1.dp,VynceTheme.colors.primary) else null,
-                                            shape = RoundedCornerShape(12.dp)
+                                            colors = FilterChipDefaults.filterChipColors(
+                                                selectedContainerColor = VynceTheme.colors.primary,
+                                                selectedLabelColor = VynceTheme.colors.onPrimary,
+                                                containerColor = VynceTheme.colors.surface,
+                                                labelColor = VynceTheme.colors.textSecondary
+                                            )
                                         )
                                     }
                                 }
                             }
                         }
 
-                        items(
-                            items = state.data.sections,
-                            key = { it.title!! }
-                        ) { section ->
-                            val isQuickPick = section.title!!.contains("quick", ignoreCase = true) ||
-                                    section.title!!.contains("trending", ignoreCase = true)
+                        itemsIndexed(
+                            items = sections,
+                            key = { _, section -> section.title ?: section.hashCode() }
+                        ) { index, section ->
+                            if (index >= sections.size - 1) {
+                                LaunchedEffect(sections.size) {
+                                    onLoadMore()
+                                }
+                            }
+
+                            val title = section.title ?: return@itemsIndexed
+                            val titleLower = title.lowercase()
+                            val isQuickPick = titleLower.contains("quick") ||
+                                    titleLower.contains("trending")
+                            val isCommunity = titleLower.contains("community")
+                            val isArtist = titleLower.contains("artist") || 
+                                    titleLower.contains("music channels")
 
                             if (isQuickPick) {
-                                QuickPicksCarousel(
-                                    title = section.title!!,
+                                CarouselColumn(
+                                    title = title,
                                     items = section.items,
-                                    onItemClick = { item ->
-                                        handleItemClick(item, onItemClick, playerViewModel)
-                                    },
+                                    onItemClick = onItemClick,
                                     onPlayAllClick = {
                                         val songs = section.items.filterIsInstance<SongItem>()
                                         if (songs.isNotEmpty()) {
-                                            playerViewModel.playAll(songs.map { it.toMediaItem() })
-                                        }
-                                    },
-                                    onSwipeRight = { item ->
-                                        if (item is SongItem) {
-                                            playerViewModel.addToQueue(item.toMediaItem())
+                                            onPlayAllClick(songs)
                                         }
                                     }
+                                )
+                            } else if (isArtist) {
+                                ArtistCarousel(
+                                    title = title,
+                                    items = section.items,
+                                    onItemClick = onItemClick
+                                )
+                            } else if (isCommunity) {
+                                CommunityCarousel(
+                                    title = title,
+                                    items = section.items,
+                                    onItemClick = onItemClick
                                 )
                             } else {
-                                CarouselList(
-                                    title = section.title!!,
+                                CarouselRow(
+                                    title = title,
                                     items = section.items,
-                                    onItemClick = { item ->
-                                        handleItemClick(item, onItemClick, playerViewModel)
-                                    },
+                                    onItemClick = onItemClick,
                                     onPlayAllClick = {
                                         val songs = section.items.filterIsInstance<SongItem>()
                                         if (songs.isNotEmpty()) {
-                                            playerViewModel.playAll(songs.map { it.toMediaItem() })
+                                            onPlayAllClick(songs)
                                         }
                                     }
                                 )
+                            }
+                        }
+
+                        if (uiState.isLoadingMore) {
+                            item {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                                ) {
+                                    repeat(3) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(160.dp)
+                                                .clip(RoundedCornerShape(16.dp))
+                                                .shimmerEffect()
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
@@ -177,52 +316,6 @@ private fun handleItemClick(
         is AlbumItem -> onItemClick("album", item.browseId)
         is PlaylistItem -> onItemClick("playlist", item.id)
         is ArtistItem -> onItemClick("artist", item.id)
-    }
-}
-
-@Composable
-fun HomeTopBar() {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .statusBarsPadding()
-            .padding(horizontal = 16.dp, vertical = 24.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            val greeting = remember { getGreeting() }
-            Text(
-                text = greeting,
-                style = VynceTheme.typography.title.copy(
-                    fontSize = 32.sp,
-                    fontWeight = FontWeight.Black,
-                    letterSpacing = (-1).sp
-                ),
-                color = VynceTheme.colors.textPrimary
-            )
-            Text(
-                text = "Discover your rhythm today",
-                style = VynceTheme.typography.label,
-                color = VynceTheme.colors.textSecondary
-            )
-        }
-        
-        Box(
-            modifier = Modifier
-                .size(44.dp)
-                .clip(CircleShape)
-                .background(VynceTheme.colors.glassSurface)
-                .padding(2.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Default.MusicNote,
-                contentDescription = null,
-                tint = VynceTheme.colors.primary,
-                modifier = Modifier.size(24.dp)
-            )
-        }
     }
 }
 
@@ -294,6 +387,99 @@ fun ErrorState(
             Spacer(modifier = Modifier.width(8.dp))
             Text("Retry")
         }
+    }
+}
+
+@UnstableApi
+@Preview(showBackground = true, uiMode = UI_MODE_NIGHT_YES)
+@Composable
+fun HomePreview() {
+    val mockArtist = com.vynce.vynceclient.models.Artist("Artist Name", "A1")
+    val mockSong = SongItem(
+        id = "1",
+        title = "Song Title",
+        artists = listOf(mockArtist),
+        thumbnail = "https://picsum.photos/200",
+        explicit = false
+    )
+    val mockAlbum = AlbumItem(
+        browseId = "B1",
+        playlistId = "P1",
+        title = "Album Title",
+        artists = listOf(mockArtist),
+        thumbnail = "https://picsum.photos/200"
+    )
+
+    val mockArtistItem = ArtistItem(
+        id = "A1",
+        title = "Artist Name",
+        thumbnail = "https://picsum.photos/200",
+        shuffleEndpoint = null,
+        radioEndpoint = null
+    )
+
+    VynceTheme {
+        HomeScreenContent(
+            uiState = HomeUiState.Success(
+                data = HomePage(
+                    chips = listOf(
+                        HomePage.Chip("Energize", null, null),
+                        HomePage.Chip("Focus", null, null),
+                        HomePage.Chip("Relax", null, null)
+                    ),
+                    sections = listOf(
+                        HomePage.Section(
+                            title = "Quick Picks",
+                            label = "Start a radio from a song",
+                            thumbnail = null,
+                            endpoint = null,
+                            items = List(12) { mockSong.copy(id = "song_$it", title = "Song $it") }
+                        ),
+                        HomePage.Section(
+                            title = "Community Playlists",
+                            label = null,
+                            thumbnail = null,
+                            endpoint = null,
+                            items = List(10) { mockSong.copy(id = "comm_$it", title = "Community Song $it") }
+                        ),
+                        HomePage.Section(
+                            title = "Artists You Love",
+                            label = null,
+                            thumbnail = null,
+                            endpoint = null,
+                            items = List(6) { mockArtistItem.copy(id = "artist_$it", title = "Artist $it") }
+                        ),
+                        HomePage.Section(
+                            title = "Forgotten Favorites",
+                            label = null,
+                            thumbnail = null,
+                            endpoint = null,
+                            items = List(6) { mockSong.copy(id = "fav_$it", title = "Favorite $it") }
+                        ),
+                        HomePage.Section(
+                            title = "New Releases",
+                            label = null,
+                            thumbnail = null,
+                            endpoint = null,
+                            items = List(6) { mockAlbum.copy(browseId = "album_$it", id = "album_$it", title = "Album $it") }
+                        )
+                    )
+                )
+            ),
+            isRefreshing = false,
+            selectedChip = null,
+            currentUser = com.vynce.music.models.User(
+                name = "Vynce User",
+                email = "user@vynce.app",
+                avatarUrl = "https://picsum.photos/200"
+            ),
+            onRefresh = {},
+            onFilterSelected = {},
+            onItemClick = {},
+            onPlayAllClick = {},
+            onAddToQueue = {},
+            onLoadMore = {}
+        )
     }
 }
 

@@ -3,6 +3,7 @@ package com.vynce.music.ui.screens.album
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vynce.music.provider.YoutubeProvider
+import com.vynce.music.utils.SyncUtils
 import com.vynce.vynceclient.pages.AlbumPage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -13,7 +14,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class AlbumViewModel @Inject constructor(
-    private val repository: YoutubeProvider
+    private val repository: YoutubeProvider,
+    private val syncUtils: SyncUtils
 ) : ViewModel() {
 
     private val _album = MutableStateFlow<AlbumPage?>(null)
@@ -35,6 +37,10 @@ class AlbumViewModel @Inject constructor(
                     _album.value = it
                 }
         }
+    }
+
+    fun toggleLike(playlistId: String, like: Boolean) {
+        syncUtils.likePlaylist(playlistId, like)
     }
 }
 

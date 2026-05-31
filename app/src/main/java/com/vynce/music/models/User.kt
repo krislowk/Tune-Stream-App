@@ -9,7 +9,7 @@ import kotlinx.serialization.Serializable
 data class User(
     @PrimaryKey
     val id: String = "default_user",
-    val email: String,
+    val email: String? = null,
     val name: String? = null,
     val avatarUrl: String? = null,
     val visitorData: String? = null,

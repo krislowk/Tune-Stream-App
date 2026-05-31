@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -35,6 +36,7 @@ import androidx.compose.material3.SearchBar
 import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -73,6 +75,7 @@ fun SearchScreen(
     val suggestions by viewModel.suggestions.collectAsState()
     val searchResult by viewModel.searchResult.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+    val isLoadingMore by viewModel.isLoadingMore.collectAsState()
     val selectedFilter by viewModel.selectedFilter.collectAsState()
     
     val focusManager = LocalFocusManager.current
@@ -212,7 +215,16 @@ fun SearchScreen(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(bottom = 88.dp)
                     ) {
-                        items(result.items) { item ->
+                        itemsIndexed(
+                            items = result.items,
+                            key = { _, item -> item.id }
+                        ) { index, item ->
+                            if (index >= result.items.size - 1) {
+                                LaunchedEffect(result.items.size) {
+                                    viewModel.loadMore()
+                                }
+                            }
+
                             ListItem(
                                 item = item,
                                 onClick = {
@@ -229,13 +241,36 @@ fun SearchScreen(
                                         selectedItemForOptions = item
                                         showMoreOptions = true
                                     }
-                                } else null
+                                } else null,
+                                onSwipeRight = {
+                                    if (item is SongItem) {
+                                        playerViewModel.addToQueue(item.toMediaItem())
+                                    }
+                                }
                             )
+
                             HorizontalDivider(
                                 modifier = Modifier.padding(horizontal = 16.dp),
                                 thickness = 0.5.dp,
                                 color = colors.glassBorder.copy(alpha = 0.1f)
                             )
+                        }
+
+                        if (isLoadingMore) {
+                            item {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(24.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    CircularProgressIndicator(
+                                        color = colors.primary,
+                                        modifier = Modifier.size(24.dp),
+                                        strokeWidth = 2.dp
+                                    )
+                                }
+                            }
                         }
                     }
                 } else if (!active && query.isEmpty()) {

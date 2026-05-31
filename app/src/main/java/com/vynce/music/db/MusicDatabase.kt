@@ -11,7 +11,6 @@ import com.vynce.music.db.entities.AlbumEntity
 import com.vynce.music.db.entities.ArtistEntity
 import com.vynce.music.db.entities.Event
 import com.vynce.music.db.entities.FormatEntity
-import com.vynce.music.db.entities.LyricsEntity
 import com.vynce.music.db.entities.PlayCountEntity
 import com.vynce.music.db.entities.PlaylistEntity
 import com.vynce.music.db.entities.PlaylistSongMap
@@ -27,6 +26,7 @@ import com.vynce.music.db.entities.SongEntity
 import com.vynce.music.db.entities.SortedSongAlbumMap
 import com.vynce.music.db.entities.SortedSongArtistMap
 import com.vynce.music.db.entities.SpeedDialItem
+import com.vynce.music.db.entities.SyncedLyric
 import com.vynce.music.models.AuthSession
 import com.vynce.music.models.History
 import com.vynce.music.models.Song
@@ -45,7 +45,6 @@ import com.vynce.music.models.User
         AlbumEntity::class,
         ArtistEntity::class,
         FormatEntity::class,
-        LyricsEntity::class,
         PodcastEntity::class,
         Event::class,
         SearchHistory::class,
@@ -58,13 +57,14 @@ import com.vynce.music.models.User
         RecognitionHistory::class,
         PlayCountEntity::class,
         RelatedSongMap::class,
+        SyncedLyric::class
     ],
     views = [
         PlaylistSongMapPreview::class,
         SortedSongAlbumMap::class,
         SortedSongArtistMap::class
     ],
-    version = 2,
+    version = 1,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -84,7 +84,7 @@ abstract class MusicDatabase : RoomDatabase() {
                     MusicDatabase::class.java,
                     DB_NAME
                 )
-                    .fallbackToDestructiveMigration(false)
+                    .fallbackToDestructiveMigration(true)
                 .build()
                 INSTANCE = instance
                 instance

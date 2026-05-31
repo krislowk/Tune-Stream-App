@@ -263,9 +263,9 @@ object YTPlayerUtils {
                 Log.d(TAG, "  currentClient: ${currentClient.clientName}")
                 Log.d(TAG, "  useWebPoTokens: ${currentClient.useWebPoTokens}")
 
-                // Apply n-transform and PoToken for web clients (WEB, WEB_REMIX, WEB_CREATOR, TVHTML5)
+                // Apply n-transform and PoToken for web clients and Android VR
                 val needsNTransform = currentClient.useWebPoTokens ||
-                        currentClient.clientName in listOf("WEB", "WEB_REMIX", "WEB_CREATOR", "TVHTML5")
+                        currentClient.clientName in listOf("WEB", "WEB_REMIX", "WEB_CREATOR", "TVHTML5", "ANDROID_VR")
 
                 Log.d(TAG, "N-transform decision:")
                 Log.d(TAG, "  needsNTransform: $needsNTransform")
@@ -385,7 +385,7 @@ object YTPlayerUtils {
         if (streamPlayerResponse.playabilityStatus.status != "OK") {
             val errorReason = streamPlayerResponse.playabilityStatus.reason
             // YouTube often surfaces generic reasons (e.g. "error 2000") for restricted or
-            // unavailable streams; Metrolist cannot recover those without official playback.
+            // unavailable streams; Vynce cannot recover those without official playback.
             Log.e(logTag, "Playability status not OK: $errorReason")
             if (isUploadedTrack) {
                 println("[PLAYBACK_DEBUG] FAILURE: Playability not OK for uploaded track - status=${streamPlayerResponse.playabilityStatus.status}, reason=$errorReason")

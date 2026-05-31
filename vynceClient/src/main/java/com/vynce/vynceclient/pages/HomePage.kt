@@ -20,7 +20,9 @@ import com.vynce.vynceclient.models.filterVideoSongs
 import com.vynce.vynceclient.models.oddElements
 import com.vynce.vynceclient.models.splitBySeparator
 import com.vynce.vynceclient.utils.parseTime
+import kotlinx.serialization.Serializable
 
+@Serializable
 data class HomePage(
     val chips: List<Chip>?,
     val sections: List<Section>,
@@ -29,6 +31,7 @@ data class HomePage(
     val filters: List<Chip>
         get() = chips ?: emptyList()
 
+    @Serializable
     data class Chip(
         val title: String,
         val endpoint: BrowseEndpoint?,
@@ -47,6 +50,7 @@ data class HomePage(
         }
     }
 
+    @Serializable
     data class Section(
         val title: String?,
         val label: String?,
@@ -241,27 +245,28 @@ data class HomePage(
                             playEndpoint = renderer.thumbnailOverlay
                                 ?.musicItemThumbnailOverlayRenderer?.content
                                 ?.musicPlayButtonRenderer?.playNavigationEndpoint
-                                ?.watchPlaylistEndpoint ?: return null,
+                                ?.watchPlaylistEndpoint,
                             shuffleEndpoint = renderer.menu?.menuRenderer?.items?.find {
                                 it.menuNavigationItemRenderer?.icon?.iconType == "MUSIC_SHUFFLE"
-                            }?.menuNavigationItemRenderer?.navigationEndpoint?.watchPlaylistEndpoint ?: return null,
-                            radioEndpoint = renderer.menu.menuRenderer.items.find {
+                            }?.menuNavigationItemRenderer?.navigationEndpoint?.watchPlaylistEndpoint,
+                            radioEndpoint = renderer.menu?.menuRenderer?.items?.find {
                                 it.menuNavigationItemRenderer?.icon?.iconType == "MIX"
                             }?.menuNavigationItemRenderer?.navigationEndpoint?.watchPlaylistEndpoint
                         )
                     }
 
-                    renderer.isArtist -> {
+                    renderer.isArtist || renderer.isUserChannel -> {
                         ArtistItem(
                             id = renderer.navigationEndpoint.browseEndpoint?.browseId ?: return null,
                             title = renderer.title.runs?.lastOrNull()?.text ?: return null,
                             thumbnail = renderer.thumbnailRenderer.musicThumbnailRenderer?.getThumbnailUrl() ?: return null,
                             shuffleEndpoint = renderer.menu?.menuRenderer?.items?.find {
                                 it.menuNavigationItemRenderer?.icon?.iconType == "MUSIC_SHUFFLE"
-                            }?.menuNavigationItemRenderer?.navigationEndpoint?.watchPlaylistEndpoint ?: return null,
-                            radioEndpoint = renderer.menu.menuRenderer.items.find {
+                            }?.menuNavigationItemRenderer?.navigationEndpoint?.watchPlaylistEndpoint,
+                            radioEndpoint = renderer.menu?.menuRenderer?.items?.find {
                                 it.menuNavigationItemRenderer?.icon?.iconType == "MIX"
-                            }?.menuNavigationItemRenderer?.navigationEndpoint?.watchPlaylistEndpoint ?: return null,
+                            }?.menuNavigationItemRenderer?.navigationEndpoint?.watchPlaylistEndpoint,
+                            isProfile = renderer.isUserChannel
                         )
                     }
 

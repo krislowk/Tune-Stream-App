@@ -3,6 +3,7 @@ package com.vynce.music.ui.screens.artist
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vynce.music.provider.YoutubeProvider
+import com.vynce.music.utils.SyncUtils
 import com.vynce.vynceclient.pages.ArtistPage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -13,7 +14,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class ArtistViewModel @Inject constructor(
-    private val repository: YoutubeProvider
+    private val repository: YoutubeProvider,
+    private val syncUtils: SyncUtils
 ) : ViewModel() {
 
     private val _artist = MutableStateFlow<ArtistPage?>(null)
@@ -35,6 +37,10 @@ class ArtistViewModel @Inject constructor(
                     _artist.value = it
                 }
         }
+    }
+
+    fun toggleSubscription(channelId: String, subscribe: Boolean) {
+        syncUtils.subscribeChannel(channelId, subscribe)
     }
 }
 

@@ -128,6 +128,9 @@ fun AlbumScreen(
                             }
                         }
                     },
+                    onLikeClick = { id, like ->
+                        viewModel.toggleLike(id, like)
+                    },
                     onTrackClick = { song ->
                         playerViewModel.play(song.toMediaItem())
                     },
@@ -173,6 +176,7 @@ fun AlbumContent(
     onShuffleClick: () -> Unit,
     onTrackClick: (SongItem) -> Unit,
     onMoreClick: (SongItem) -> Unit,
+    onLikeClick: (String, Boolean) -> Unit = { _, _ -> },
     onSwipeRight: (SongItem) -> Unit = {}
 ) {
     LazyColumn(
@@ -183,7 +187,8 @@ fun AlbumContent(
             AlbumHeader(
                 album = album.album,
                 onPlayClick = onPlayClick,
-                onShuffleClick = onShuffleClick
+                onShuffleClick = onShuffleClick,
+                onLikeClick = onLikeClick
             )
         }
 
@@ -191,8 +196,7 @@ fun AlbumContent(
             ListItem(
                 item = song,
                 onClick = { onTrackClick(song) },
-                onMoreClick = { onMoreClick(song) },
-                onSwipeRight = { onSwipeRight(song) }
+                onMoreClick = { onMoreClick(song) }
             )
         }
     }
@@ -202,8 +206,11 @@ fun AlbumContent(
 fun AlbumHeader(
     album: AlbumItem,
     onPlayClick: () -> Unit,
-    onShuffleClick: () -> Unit
+    onShuffleClick: () -> Unit,
+    onLikeClick: (String, Boolean) -> Unit = { _, _ -> }
 ) {
+    var isLiked by remember { mutableStateOf(false) }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -301,6 +308,23 @@ fun AlbumHeader(
                     tint = VynceTheme.colors.primary
                 )
             }
+        }
+        
+        Spacer(Modifier.height(16.dp))
+
+        Button(
+            onClick = { 
+                isLiked = !isLiked
+                onLikeClick(album.browseId, isLiked)
+            },
+            modifier = Modifier.fillMaxWidth().height(48.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = if (isLiked) VynceTheme.colors.surface else VynceTheme.colors.primary,
+                contentColor = if (isLiked) VynceTheme.colors.textPrimary else VynceTheme.colors.onPrimary
+            )
+        ) {
+            Text(if (isLiked) "Liked" else "Like Album", fontWeight = FontWeight.Bold)
         }
         
         Spacer(Modifier.height(16.dp))

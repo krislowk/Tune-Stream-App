@@ -31,6 +31,9 @@ class SearchViewModel @Inject constructor(
     private val _isLoading = MutableStateFlow(false)
     val isLoading = _isLoading.asStateFlow()
 
+    private val _isLoadingMore = MutableStateFlow(false)
+    val isLoadingMore = _isLoadingMore.asStateFlow()
+
     private val _selectedFilter = MutableStateFlow(YouTube.SearchFilter.FILTER_SONG)
     val selectedFilter = _selectedFilter.asStateFlow()
 
@@ -76,6 +79,25 @@ class SearchViewModel @Inject constructor(
                     _isLoading.value = false
                     _searchResult.value = it
                 }
+        }
+    }
+
+    fun loadMore() {
+        val result = _searchResult.value
+        if (result?.continuation != null && !_isLoadingMore.value) {
+            viewModelScope.launch {
+                _isLoadingMore.value = true
+                youtubeProvider.searchContinuation(result.continuation!!)
+                    .catch { e ->
+                        _isLoadingMore.value = false
+                        e.printStackTrace()
+                    }
+                    .collect { 
+                        _isLoadingMore.value = false
+                        val currentItems = _searchResult.value?.items ?: emptyList()
+                        _searchResult.value = it.copy(items = currentItems + it.items)
+                    }
+            }
         }
     }
 }
