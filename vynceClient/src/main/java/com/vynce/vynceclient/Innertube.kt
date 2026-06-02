@@ -1,8 +1,10 @@
 package com.vynce.vynceclient
 
 import com.vynce.vynceclient.models.Context
+import com.vynce.vynceclient.models.MediaInfo
+import com.vynce.vynceclient.models.ReturnYouTubeDislikeResponse
 import com.vynce.vynceclient.models.YouTubeClient
-import com.vynce.vynceclient.models.YtLocale
+import com.vynce.vynceclient.models.YouTubeLocale
 import com.vynce.vynceclient.models.body.AccountMenuBody
 import com.vynce.vynceclient.models.body.Action
 import com.vynce.vynceclient.models.body.BrowseBody
@@ -18,14 +20,17 @@ import com.vynce.vynceclient.models.body.PlayerBody
 import com.vynce.vynceclient.models.body.PlaylistDeleteBody
 import com.vynce.vynceclient.models.body.SearchBody
 import com.vynce.vynceclient.models.body.SubscribeBody
+import com.vynce.vynceclient.models.response.NextResponse
 import com.vynce.vynceclient.utils.parseCookieString
 import com.vynce.vynceclient.utils.sha1
 import io.ktor.client.HttpClient
+import io.ktor.client.call.body
 import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.compression.ContentEncoding
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.defaultRequest
+import io.ktor.client.plugins.onUpload
 import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.get
 import io.ktor.client.request.header
@@ -33,129 +38,128 @@ import io.ktor.client.request.headers
 import io.ktor.client.request.parameter
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
-import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import io.ktor.http.userAgent
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.delay
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
-import okhttp3.ConnectionPool
 import java.io.IOException
 import java.net.Proxy
-import java.util.Collections
 import java.util.Locale
-import java.util.concurrent.TimeUnit
 import kotlin.io.encoding.Base64
-import kotlin.time.Duration.Companion.milliseconds
+import kotlin.io.encoding.ExperimentalEncodingApi
 
-class Innertube : ApiProvider {
+/**
+ * Provide access to InnerTube endpoints.
+ * For making HTTP requests, not parsing response.
+ */
+@OptIn(ExperimentalEncodingApi::class)
+class InnerTube {
+    private var httpClient = createClient()
 
-    override var locale = YtLocale(
+    var locale = YouTubeLocale(
         gl = Locale.getDefault().country,
-        hl = Locale.getDefault().language
+        hl = Locale.getDefault().toLanguageTag()
     )
+    var visitorData: String? = null
     var dataSyncId: String? = null
-
-    override var useLoginForBrowse: Boolean = true
-
-    override var visitorData: String? = null
-
-    override var cookie: String? = null
+    var cookie: String? = null
         set(value) {
             field = value
-            cookieMap =
-                if (value == null) Collections.emptyMap() else parseCookieString(
-                    value
+            cookieMap = if (value == null) emptyMap() else parseCookieString(value)
+        }
+    private var cookieMap = emptyMap<String, String>()
+
+    var proxy: Proxy? = null
+        set(value) {
+            field = value
+            httpClient.close()
+            httpClient = createClient()
+        }
+
+    var proxyAuth: String? = null
+
+    var useLoginForBrowse: Boolean = false
+
+    @OptIn(ExperimentalSerializationApi::class)
+    private fun createClient() = HttpClient(OkHttp) {
+        expectSuccess = true
+
+        install(ContentNegotiation) {
+            json(Json {
+                ignoreUnknownKeys = true
+                explicitNulls = false
+                encodeDefaults = true
+            })
+        }
+
+        install(ContentEncoding) {
+            gzip(0.9F)
+            deflate(0.8F)
+        }
+
+        // Enhanced network configuration for better performance
+        engine {
+            config {
+                // Connection pool settings for better connection reuse
+                connectionPool(
+                    okhttp3.ConnectionPool(
+                        10, // maxIdleConnections
+                        5, // keepAliveDuration
+                        java.util.concurrent.TimeUnit.MINUTES
+                    )
                 )
-        }
-    private var cookieMap = Collections.emptyMap<String, String>()
 
-    override var proxy: Proxy?
-        get() = Companion.proxy
-        set(value) {
-            Companion.proxy = value
-        }
+                // Timeout configurations
+                connectTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+                readTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
+                writeTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
 
-    override var proxyAuth: String?
-        get() = Companion.proxyAuth
-        set(value) {
-            Companion.proxyAuth = value
-        }
+                // Enable HTTP/2 for better performance
+                protocols(listOf(okhttp3.Protocol.HTTP_2, okhttp3.Protocol.HTTP_1_1))
 
-    companion object {
-        var proxy: Proxy? = null
-        var proxyAuth: String? = null
+                // Retry on connection failure
+                retryOnConnectionFailure(true)
 
-        private val sharedClient by lazy {
-            HttpClient(OkHttp) {
-                expectSuccess = true
+                // Cache configuration for better performance
+                cache(
+                    okhttp3.Cache(
+                        directory = java.io.File(System.getProperty("java.io.tmpdir"), "http_cache"),
+                        maxSize = 50L * 1024L * 1024L // 50 MB
+                    )
+                )
 
-                install(ContentNegotiation) {
-                    json(Json {
-                        ignoreUnknownKeys = true
-                        explicitNulls = false
-                        encodeDefaults = true
-                    })
+                // Apply proxy configuration
+                this@InnerTube.proxy?.let { proxyConfig ->
+                    proxy(proxyConfig)
                 }
 
-                install(ContentEncoding) {
-                    gzip(0.9F)
-                    deflate(0.8F)
-                }
-
-                engine {
-                    config {
-                        connectionPool(
-                            ConnectionPool(
-                                10,
-                                5,
-                                TimeUnit.MINUTES
-                            )
-                        )
-
-                        connectTimeout(30, TimeUnit.SECONDS)
-                        readTimeout(60, TimeUnit.SECONDS)
-                        writeTimeout(60, TimeUnit.SECONDS)
-
-                        protocols(listOf(okhttp3.Protocol.HTTP_2, okhttp3.Protocol.HTTP_1_1))
-                        retryOnConnectionFailure(true)
-
-                        cache(
-                            okhttp3.Cache(
-                                directory = java.io.File(System.getProperty("java.io.tmpdir"), "http_cache"),
-                                maxSize = 50L * 1024L * 1024L
-                            )
-                        )
-
-                        proxy?.let { proxyConfig ->
-                            proxy(proxyConfig)
-                        }
-
-                        proxyAuth?.let { auth ->
-                            proxyAuthenticator { _, response ->
-                                response.request.newBuilder()
-                                    .header("Proxy-Authorization", auth)
-                                    .build()
-                            }
-                        }
+                // Apply proxy authentication
+                this@InnerTube.proxyAuth?.let { auth ->
+                    proxyAuthenticator { _, response ->
+                        response.request.newBuilder()
+                            .header("Proxy-Authorization", auth)
+                            .build()
                     }
                 }
-                // Request timeout configuration
-                install(HttpTimeout) {
-                    requestTimeoutMillis = 60000
-                    connectTimeoutMillis = 30000
-                    socketTimeoutMillis = 60000
-                }
-
-                defaultRequest {
-                    url(YouTubeClient.API_URL_YOUTUBE_MUSIC)
-                    // Add common headers for better compatibility
-                    header("Accept", "application/json")
-                    header("Accept-Language", "en-US,en;q=0.9")
-                    header("Cache-Control", "no-cache")
-                }
             }
+        }
+
+        // Request timeout configuration
+        install(HttpTimeout) {
+            requestTimeoutMillis = 60000
+            connectTimeoutMillis = 30000
+            socketTimeoutMillis = 60000
+        }
+
+        defaultRequest {
+            url(YouTubeClient.API_URL_YOUTUBE_MUSIC)
+            // Add common headers for better compatibility
+            header("Accept", "application/json")
+            header("Accept-Language", "en-US,en;q=0.9")
+            header("Cache-Control", "no-cache")
         }
     }
 
@@ -182,6 +186,11 @@ class Innertube : ApiProvider {
         parameter("prettyPrint", false)
     }
 
+    /**
+     * Simple retry wrapper for transient IO errors (socket aborts, timeouts).
+     * Retries the given block up to [maxAttempts] times with exponential backoff.
+     * Cancellation is respected since [delay] will throw if the coroutine is cancelled.
+     */
     private suspend fun <T> withRetry(
         maxAttempts: Int = 3,
         initialDelay: Long = 500L,
@@ -196,26 +205,26 @@ class Innertube : ApiProvider {
             } catch (e: IOException) {
                 attempt++
                 if (attempt >= maxAttempts) throw e
-                delay(currentDelay.milliseconds)
+                delay(currentDelay)
                 currentDelay = (currentDelay * factor).toLong()
             }
         }
     }
 
-    override suspend fun search(
+    suspend fun search(
         client: YouTubeClient,
-        query: String?,
-        params: String?,
-        continuation: String?,
+        query: String? = null,
+        params: String? = null,
+        continuation: String? = null,
     ) = withRetry {
-        sharedClient.post("search") {
-            ytClient(client, setLogin = useLoginForBrowse)
+        httpClient.post("search") {
+            ytClient(client, setLogin = false)
             setBody(
                 SearchBody(
                     context = client.toContext(
                         locale,
                         visitorData,
-                        if (useLoginForBrowse) dataSyncId else null
+                        null
                     ),
                     query = query,
                     params = params
@@ -226,14 +235,14 @@ class Innertube : ApiProvider {
         }
     }
 
-    override suspend fun player(
+    suspend fun player(
         client: YouTubeClient,
         videoId: String,
         playlistId: String?,
         signatureTimestamp: Int?,
-        poToken: String?,
+        poToken: String? = null,
     ) = withRetry {
-        sharedClient.post("player") {
+        httpClient.post("player") {
             ytClient(client, setLogin = true)
             setBody(
                 PlayerBody(
@@ -263,15 +272,32 @@ class Innertube : ApiProvider {
         }
     }
 
-
-    override suspend fun browse(
-        client: YouTubeClient,
-        browseId: String?,
-        params: String?,
-        continuation: String?,
-        setLogin: Boolean,
+    suspend fun registerPlayback(
+        url: String,
+        cpn: String,
+        playlistId: String?,
+        client: YouTubeClient = YouTubeClient.WEB_REMIX,
     ) = withRetry {
-        sharedClient.post("browse") {
+        httpClient.get(url) {
+            ytClient(client, true)
+            parameter("c", client.clientName)
+            parameter("cpn", cpn)
+
+            if (playlistId != null) {
+                parameter("list", playlistId)
+                parameter("referrer", "https://music.youtube.com/playlist?list=$playlistId")
+            }
+        }
+    }
+
+    suspend fun browse(
+        client: YouTubeClient,
+        browseId: String? = null,
+        params: String? = null,
+        continuation: String? = null,
+        setLogin: Boolean = false,
+    ) = withRetry {
+        httpClient.post("browse") {
             ytClient(client, setLogin = setLogin || useLoginForBrowse)
             setBody(
                 BrowseBody(
@@ -288,16 +314,16 @@ class Innertube : ApiProvider {
         }
     }
 
-    override suspend fun next(
+    suspend fun next(
         client: YouTubeClient,
         videoId: String?,
         playlistId: String?,
         playlistSetVideoId: String?,
         index: Int?,
         params: String?,
-        continuation: String?,
+        continuation: String? = null,
     ) = withRetry {
-        sharedClient.post("next") {
+        httpClient.post("next") {
             ytClient(client, setLogin = true)
             setBody(
                 NextBody(
@@ -313,11 +339,26 @@ class Innertube : ApiProvider {
         }
     }
 
-    override suspend fun getSearchSuggestions(
+    suspend fun feedback(
+        client: YouTubeClient,
+        tokens: List<String>
+    ) = withRetry {
+        httpClient.post("feedback") {
+            ytClient(client, setLogin = true)
+            setBody(
+                FeedbackBody(
+                    context = client.toContext(locale, visitorData, dataSyncId),
+                    feedbackTokens = tokens
+                )
+            )
+        }
+    }
+
+    suspend fun getSearchSuggestions(
         client: YouTubeClient,
         input: String,
     ) = withRetry {
-        sharedClient.post("music/get_search_suggestions") {
+        httpClient.post("music/get_search_suggestions") {
             ytClient(client)
             setBody(
                 GetSearchSuggestionsBody(
@@ -328,12 +369,12 @@ class Innertube : ApiProvider {
         }
     }
 
-    override suspend fun getQueue(
+    suspend fun getQueue(
         client: YouTubeClient,
         videoIds: List<String>?,
         playlistId: String?,
     ) = withRetry {
-        sharedClient.post("music/get_queue") {
+        httpClient.post("music/get_queue") {
             ytClient(client)
             setBody(
                 GetQueueBody(
@@ -345,18 +386,18 @@ class Innertube : ApiProvider {
         }
     }
 
-    override suspend fun getTranscript(
+    suspend fun getTranscript(
         client: YouTubeClient,
         videoId: String,
     ) = withRetry {
-        sharedClient.post("https://music.youtube.com/youtubei/v1/get_transcript") {
+        httpClient.post("https://music.youtube.com/youtubei/v1/get_transcript") {
             parameter("key", "AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX3")
             headers {
                 append("Content-Type", "application/json")
             }
             setBody(
                 GetTranscriptBody(
-                    context = client.toContext(locale, null, null),
+                    context = client.toContext(locale, visitorData, null),
                     params = Base64.Default.encode(
                         "\n${11.toChar()}$videoId".encodeToByteArray()
                     )
@@ -365,22 +406,20 @@ class Innertube : ApiProvider {
         }
     }
 
-    override suspend fun getSwJsData() = withRetry { sharedClient.get("https://music.youtube.com/sw.js_data") }
+    suspend fun getSwJsData() = withRetry { httpClient.get("https://music.youtube.com/sw.js_data") }
 
-    override suspend fun accountMenu(client: YouTubeClient) = withRetry {
-        val response =sharedClient.post("account/account_menu") {
+    suspend fun accountMenu(client: YouTubeClient) = withRetry {
+        httpClient.post("account/account_menu") {
             ytClient(client, setLogin = true)
             setBody(AccountMenuBody(client.toContext(locale, visitorData, dataSyncId)))
         }
-        println(response.bodyAsText())
-        response
     }
 
     suspend fun likeVideo(
         client: YouTubeClient,
         videoId: String,
     ) = withRetry {
-        sharedClient.post("like/like") {
+        httpClient.post("like/like") {
             ytClient(client, setLogin = true)
             setBody(
                 LikeBody(
@@ -395,7 +434,7 @@ class Innertube : ApiProvider {
         client: YouTubeClient,
         videoId: String,
     ) = withRetry {
-        sharedClient.post("like/removelike") {
+        httpClient.post("like/removelike") {
             ytClient(client, setLogin = true)
             setBody(
                 LikeBody(
@@ -411,7 +450,7 @@ class Innertube : ApiProvider {
         channelId: String,
         params: String? = null,
     ) = withRetry {
-        sharedClient.post("subscription/subscribe") {
+        httpClient.post("subscription/subscribe") {
             ytClient(client, setLogin = true)
             setBody(
                 SubscribeBody(
@@ -428,7 +467,7 @@ class Innertube : ApiProvider {
         channelId: String,
         params: String? = null,
     ) = withRetry {
-        sharedClient.post("subscription/unsubscribe") {
+        httpClient.post("subscription/unsubscribe") {
             ytClient(client, setLogin = true)
             setBody(
                 SubscribeBody(
@@ -440,26 +479,11 @@ class Innertube : ApiProvider {
         }
     }
 
-    suspend fun feedback(
-        client: YouTubeClient,
-        tokens: List<String>
-    ) = withRetry {
-        sharedClient.post("feedback") {
-            ytClient(client, setLogin = true)
-            setBody(
-                FeedbackBody(
-                    context = client.toContext(locale, visitorData, dataSyncId),
-                    feedbackTokens = tokens
-                )
-            )
-        }
-    }
-
     suspend fun likePlaylist(
         client: YouTubeClient,
         playlistId: String,
     ) = withRetry {
-        sharedClient.post("like/like") {
+        httpClient.post("like/like") {
             ytClient(client, setLogin = true)
             setBody(
                 LikeBody(
@@ -474,7 +498,7 @@ class Innertube : ApiProvider {
         client: YouTubeClient,
         playlistId: String,
     ) = withRetry {
-        sharedClient.post("like/removelike") {
+        httpClient.post("like/removelike") {
             ytClient(client, setLogin = true)
             setBody(
                 LikeBody(
@@ -490,7 +514,7 @@ class Innertube : ApiProvider {
         playlistId: String,
         videoId: String,
     ) = withRetry {
-        sharedClient.post("browse/edit_playlist") {
+        httpClient.post("browse/edit_playlist") {
             ytClient(client, setLogin = true)
             setBody(
                 EditPlaylistBody(
@@ -509,7 +533,7 @@ class Innertube : ApiProvider {
         playlistId: String,
         addPlaylistId: String,
     ) = withRetry {
-        sharedClient.post("browse/edit_playlist") {
+        httpClient.post("browse/edit_playlist") {
             ytClient(client, setLogin = true)
             setBody(
                 EditPlaylistBody(
@@ -529,7 +553,7 @@ class Innertube : ApiProvider {
         videoId: String,
         setVideoId: String,
     ) = withRetry {
-        sharedClient.post("browse/edit_playlist") {
+        httpClient.post("browse/edit_playlist") {
             ytClient(client, setLogin = true)
             setBody(
                 EditPlaylistBody(
@@ -552,7 +576,7 @@ class Innertube : ApiProvider {
         setVideoId: String,
         successorSetVideoId: String?,
     ) = withRetry {
-        sharedClient.post("browse/edit_playlist") {
+        httpClient.post("browse/edit_playlist") {
             ytClient(client, setLogin = true)
             setBody(
                 EditPlaylistBody(
@@ -573,7 +597,7 @@ class Innertube : ApiProvider {
         client: YouTubeClient,
         title: String,
     ) = withRetry {
-        sharedClient.post("playlist/create") {
+        httpClient.post("playlist/create") {
             ytClient(client, true)
             setBody(
                 CreatePlaylistBody(
@@ -589,7 +613,7 @@ class Innertube : ApiProvider {
         playlistId: String,
         name: String,
     ) = withRetry {
-        sharedClient.post("browse/edit_playlist") {
+        httpClient.post("browse/edit_playlist") {
             ytClient(client, setLogin = true)
             setBody(
                 EditPlaylistBody(
@@ -605,11 +629,83 @@ class Innertube : ApiProvider {
         }
     }
 
+    suspend fun getUploadCustomThumbnailLink(
+        client: YouTubeClient,
+        contentLength: Int
+    ) = withRetry {
+        httpClient.post("https://music.youtube.com/playlist_image_upload/playlist_custom_thumbnail") {
+            ytClient(client, setLogin = true)
+            headers {
+                append("X-Goog-Upload-Command", "start")
+                append("X-Goog-Upload-Protocol", "resumable")
+                append("X-Goog-Upload-Header-Content-Length", contentLength.toString())
+            }
+        }
+    }
+
+    suspend fun uploadCustomThumbnail(
+        client: YouTubeClient,
+        uploadId: String,
+        image: ByteArray,
+    ) = withRetry {
+        httpClient.post("https://music.youtube.com/playlist_image_upload/playlist_custom_thumbnail") {
+            ytClient(client, setLogin = true)
+            parameter("upload_id", uploadId)
+            parameter("upload_protocol", "resumable")
+            headers {
+                append("X-Goog-Upload-Command", "upload, finalize")
+                append("X-Goog-Upload-Offset", "0")
+            }
+            setBody(image)
+        }
+    }
+
+    suspend fun setThumbnailPlaylist(
+        client: YouTubeClient,
+        playlistId: String,
+        blobId: String,
+    ) = withRetry {
+        httpClient.post("browse/edit_playlist") {
+            ytClient(client, setLogin = true)
+            setBody(
+                EditPlaylistBody(
+                    context = client.toContext(locale, visitorData, dataSyncId),
+                    playlistId = playlistId,
+                    actions = listOf(
+                        Action.SetCustomThumbnailAction(
+                            addedCustomThumbnail = Action.SetCustomThumbnailAction.AddedCustomThumbnail(
+                                playlistScottyEncryptedBlobId = blobId
+                            )
+                        )
+                    )
+                )
+            )
+        }
+    }
+
+    suspend fun removeThumbnailPlaylist(
+        client: YouTubeClient,
+        playlistId: String
+    ) = withRetry {
+        httpClient.post("browse/edit_playlist") {
+            ytClient(client, setLogin = true)
+            setBody(
+                EditPlaylistBody(
+                    context = client.toContext(locale, visitorData, dataSyncId),
+                    playlistId = playlistId,
+                    actions = listOf(
+                        Action.RemoveCustomThumbnailAction()
+                    )
+                )
+            )
+        }
+    }
+
     suspend fun deletePlaylist(
         client: YouTubeClient,
         playlistId: String,
     ) = withRetry {
-        sharedClient.post("playlist/delete") {
+        httpClient.post("playlist/delete") {
             println("deleting $playlistId")
             ytClient(client, setLogin = true)
             setBody(
@@ -621,17 +717,169 @@ class Innertube : ApiProvider {
         }
     }
 
-    override fun getHttpClient(): HttpClient = sharedClient
+    private suspend fun returnYouTubeDislike(videoId: String) = withRetry {
+        httpClient.get("https://returnyoutubedislikeapi.com/Votes?videoId=$videoId") {
+            contentType(ContentType.Application.Json)
+        }
+    }
+
+
+    /**
+     * Initialize a song upload to YouTube Music.
+     * Returns the upload URL in the X-Goog-Upload-URL header.
+     */
+    suspend fun initSongUpload(
+        filename: String,
+        contentLength: Long
+    ) = withRetry {
+        val authUser = "0"
+        httpClient.post("https://upload.youtube.com/upload/usermusic/http?authuser=$authUser") {
+            headers {
+                append("X-Goog-Upload-Command", "start")
+                append("X-Goog-Upload-Protocol", "resumable")
+                append("X-Goog-Upload-Header-Content-Length", contentLength.toString())
+                append("X-Goog-AuthUser", authUser)
+                append("Origin", YouTubeClient.ORIGIN_YOUTUBE_MUSIC)
+                cookie?.let { cookie ->
+                    append("cookie", cookie)
+                    if ("SAPISID" !in cookieMap) return@let
+                    val currentTime = System.currentTimeMillis() / 1000
+                    val sapisidHash = sha1("$currentTime ${cookieMap["SAPISID"]} ${YouTubeClient.ORIGIN_YOUTUBE_MUSIC}")
+                    append("Authorization", "SAPISIDHASH ${currentTime}_${sapisidHash}")
+                }
+            }
+            contentType(ContentType.Application.FormUrlEncoded)
+            setBody("filename=$filename")
+        }
+    }
+
+    /**
+     * Upload song data to the provided upload URL.
+     */
+    suspend fun uploadSongData(
+        uploadUrl: String,
+        data: ByteArray,
+        onProgress: ((Float) -> Unit)? = null
+    ) = withRetry {
+        httpClient.post(uploadUrl) {
+            headers {
+                append("X-Goog-Upload-Command", "upload, finalize")
+                append("X-Goog-Upload-Offset", "0")
+                append("X-Goog-AuthUser", "0")
+                append("Origin", YouTubeClient.ORIGIN_YOUTUBE_MUSIC)
+                cookie?.let { cookie ->
+                    append("cookie", cookie)
+                    if ("SAPISID" !in cookieMap) return@let
+                    val currentTime = System.currentTimeMillis() / 1000
+                    val sapisidHash = sha1("$currentTime ${cookieMap["SAPISID"]} ${YouTubeClient.ORIGIN_YOUTUBE_MUSIC}")
+                    append("Authorization", "SAPISIDHASH ${currentTime}_${sapisidHash}")
+                }
+            }
+            contentType(ContentType.Application.OctetStream)
+            setBody(data)
+            onUpload { bytesSentTotal, contentLength ->
+                contentLength?.let {
+                    onProgress?.invoke(bytesSentTotal.toFloat() / it.toFloat())
+                }
+            }
+        }
+    }
+
+    /**
+     * Delete a privately owned (uploaded) song from YouTube Music.
+     */
+    suspend fun deletePrivatelyOwnedEntity(entityId: String) = withRetry {
+        val context = YouTubeClient.WEB_REMIX.toContext(locale, visitorData, null)
+        val requestBody = """{"context":${Json.encodeToString(context)},"entityId":"$entityId"}"""
+        httpClient.post("https://music.youtube.com/youtubei/v1/music/delete_privately_owned_entity") {
+            contentType(ContentType.Application.Json)
+            headers {
+                append("Referer", YouTubeClient.REFERER_YOUTUBE_MUSIC)
+                append("Origin", YouTubeClient.ORIGIN_YOUTUBE_MUSIC)
+                cookie?.let { cookie ->
+                    append("cookie", cookie)
+                    if ("SAPISID" !in cookieMap) return@let
+                    val currentTime = System.currentTimeMillis() / 1000
+                    val sapisidHash = sha1("$currentTime ${cookieMap["SAPISID"]} ${YouTubeClient.ORIGIN_YOUTUBE_MUSIC}")
+                    append("Authorization", "SAPISIDHASH ${currentTime}_${sapisidHash}")
+                }
+            }
+            parameter("key", "AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX3")
+            parameter("prettyPrint", false)
+            setBody(requestBody)
+        }
+    }
+
+    suspend fun getMediaInfo(videoId: String): Result<MediaInfo> =
+        runCatching {
+            val response = next(client = YouTubeClient.WEB, videoId, null, null, null, null, null).body<NextResponse>()
+
+            val baseForInfo =
+                response.contents.twoColumnWatchNextResults
+                    ?.results
+                    ?.results
+                    ?.content
+                    ?.find {
+                        it?.videoSecondaryInfoRenderer != null
+                    }?.videoSecondaryInfoRenderer
+
+            val baseForTitle =
+                response.contents.twoColumnWatchNextResults
+                    ?.results
+                    ?.results
+                    ?.content
+                    ?.find {
+                        it?.videoPrimaryInfoRenderer != null
+                    }?.videoPrimaryInfoRenderer
+
+            val returnYouTubeDislikeResponse =
+                returnYouTubeDislike(videoId).body<ReturnYouTubeDislikeResponse>()
+
+            return@runCatching MediaInfo(
+                videoId = videoId,
+                title = baseForTitle
+                    ?.title
+                    ?.runs
+                    ?.firstOrNull()
+                    ?.text,
+                author = baseForInfo
+                    ?.owner
+                    ?.videoOwnerRenderer
+                    ?.title
+                    ?.runs
+                    ?.firstOrNull()
+                    ?.text,
+                authorId =
+                    baseForInfo
+                        ?.owner
+                        ?.videoOwnerRenderer
+                        ?.navigationEndpoint
+                        ?.browseEndpoint
+                        ?.browseId,
+                authorThumbnail =
+                    baseForInfo
+                        ?.owner
+                        ?.videoOwnerRenderer
+                        ?.thumbnail
+                        ?.thumbnails
+                        ?.find {
+                            it.height == 48
+                        }?.url
+                        ?.replace("s48", "s960"),
+                description = baseForInfo?.attributedDescription?.content,
+                subscribers =
+                    baseForInfo
+                        ?.owner
+                        ?.videoOwnerRenderer
+                        ?.subscriberCountText
+                        ?.simpleText?.split(" ")?.firstOrNull(),
+                uploadDate = baseForTitle?.dateText?.simpleText,
+                viewCount = returnYouTubeDislikeResponse.viewCount,
+                like = returnYouTubeDislikeResponse.likes,
+                dislike = returnYouTubeDislikeResponse.dislikes,
+            )
+
+        }
+
+
 }
-
-
-
-
-
-
-
-
-
-
-
-

@@ -6,3 +6,6 @@ data class AccountInfo(
     val channelHandle: String?,
     val thumbnailUrl: String?,
 )
+
+
+

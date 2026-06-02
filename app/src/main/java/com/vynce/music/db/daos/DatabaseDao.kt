@@ -14,6 +14,7 @@ import com.vynce.music.db.entities.AlbumArtistMap
 import com.vynce.music.db.entities.AlbumEntity
 import com.vynce.music.db.entities.Artist
 import com.vynce.music.db.entities.ArtistEntity
+import com.vynce.music.db.entities.LyricsEntity
 import com.vynce.music.db.entities.Playlist
 import com.vynce.music.db.entities.PlaylistEntity
 import com.vynce.music.db.entities.PlaylistSong
@@ -25,7 +26,6 @@ import com.vynce.music.db.entities.SongAlbumMap
 import com.vynce.music.db.entities.SongArtistMap
 import com.vynce.music.db.entities.SongEntity
 import com.vynce.music.db.entities.SpeedDialItem
-import com.vynce.music.db.entities.SyncedLyric
 import com.vynce.music.models.AuthSession
 import com.vynce.music.models.History
 import com.vynce.music.models.MediaMetadata
@@ -237,6 +237,13 @@ abstract class DatabaseDao {
     @Query("UPDATE songs SET isLiked = NOT isLiked WHERE mediaId = :mediaId")
     abstract suspend fun toggleLike(mediaId: String)
 
+    @Transaction
+    @Query("SELECT * FROM lyrics WHERE id = :id")
+    abstract fun lyrics(id: String?): Flow<LyricsEntity?>
+
+    @Upsert
+    abstract fun upsert(lyrics: LyricsEntity)
+
     @Query("UPDATE song SET lyricsOffset = :offset WHERE id = :mediaId")
     abstract suspend fun updateLyricsOffsetEntity(mediaId: String, offset: Int)
 
@@ -380,25 +387,6 @@ abstract class DatabaseDao {
     @Upsert
     abstract suspend fun upsert(entity: SetVideoIdEntity)
 
-    // --- Lyrics ---
-    @Query("SELECT * FROM synced_lyrics ORDER BY createdAt DESC")
-    abstract fun getAllSyncedLyrics(): Flow<List<SyncedLyric>>
-
-    @Query("SELECT * FROM synced_lyrics WHERE id = :id LIMIT 1")
-    abstract suspend fun getLyricById(id: Int): SyncedLyric?
-
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    abstract suspend fun insertSyncedLyric(syncedLyric: SyncedLyric): Long
-
-    @Query("DELETE FROM synced_lyrics WHERE id = :id")
-    abstract suspend fun deleteLyricById(id: Int)
-
-    @Query("DELETE FROM synced_lyrics")
-    abstract suspend fun deleteAll()
-
-    @Upsert
-    abstract suspend fun upsert(lyrics: SyncedLyric)
-
     // --- Helpers ---
 
     @Transaction
@@ -478,6 +466,9 @@ abstract class DatabaseDao {
         }
     }
 }
+
+
+
 
 
 

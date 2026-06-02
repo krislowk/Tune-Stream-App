@@ -89,9 +89,19 @@ class MusicService: MediaLibraryService() {
         player.addListener(object : Player.Listener {
             override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
                 currentMediaItem = mediaItem
-                // If the item has no URI, resolve it now
-                if (mediaItem != null && (mediaItem.localConfiguration?.uri == null || mediaItem.localConfiguration?.uri.toString().isEmpty())) {
+                
+                // Resolve current item if missing URI
+                if (mediaItem != null && (mediaItem.localConfiguration?.uri == null || mediaItem.localConfiguration?.uri == android.net.Uri.EMPTY)) {
                     resolveMediaItem(mediaItem)
+                }
+
+                // Pre-resolve next item for seamless transition
+                val nextIndex = player.currentMediaItemIndex + 1
+                if (nextIndex < player.mediaItemCount) {
+                    val nextItem = player.getMediaItemAt(nextIndex)
+                    if (nextItem.localConfiguration?.uri == null || nextItem.localConfiguration?.uri == android.net.Uri.EMPTY) {
+                        resolveMediaItem(nextItem, nextIndex)
+                    }
                 }
             }
         })
@@ -138,7 +148,8 @@ class MusicService: MediaLibraryService() {
                     videoId = videoId,
                     playlistId = playlistId,
                     audioQuality = audioQuality,
-                    connectivityManager = networkConnectivityManager.connectivityManager
+                    connectivityManager = networkConnectivityManager.connectivityManager,
+                    databaseDao = songRepository.databaseDao // Added this
                 ).getOrNull()
 
                 if (playbackData?.streamUrl != null) {
@@ -176,6 +187,9 @@ class MusicService: MediaLibraryService() {
         }
     }
 }
+
+
+
 
 
 

@@ -23,7 +23,7 @@ data class YouTubeClient(
     val isEmbedded: Boolean = false,
     val useWebPoTokens: Boolean = false,
 ) {
-    fun toContext(locale: YtLocale, visitorData: String?, dataSyncId: String?) = Context(
+    fun toContext(locale: YouTubeLocale, visitorData: String?, dataSyncId: String?) = Context(
         client = Context.Client(
             clientName = clientName,
             clientVersion = clientVersion,
@@ -244,6 +244,9 @@ data class YouTubeClient(
         )
     }
 }
+
+
+
 
 
 

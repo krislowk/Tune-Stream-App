@@ -1,13 +1,16 @@
+@file:OptIn(ExperimentalSerializationApi::class)
+
 package com.vynce.vynceclient.models
 
 import com.vynce.vynceclient.models.BrowseEndpoint.BrowseEndpointContextSupportedConfigs.BrowseEndpointContextMusicConfig.Companion.MUSIC_PAGE_TYPE_ALBUM
 import com.vynce.vynceclient.models.BrowseEndpoint.BrowseEndpointContextSupportedConfigs.BrowseEndpointContextMusicConfig.Companion.MUSIC_PAGE_TYPE_ARTIST
 import com.vynce.vynceclient.models.BrowseEndpoint.BrowseEndpointContextSupportedConfigs.BrowseEndpointContextMusicConfig.Companion.MUSIC_PAGE_TYPE_AUDIOBOOK
 import com.vynce.vynceclient.models.BrowseEndpoint.BrowseEndpointContextSupportedConfigs.BrowseEndpointContextMusicConfig.Companion.MUSIC_PAGE_TYPE_LIBRARY_ARTIST
-import com.vynce.vynceclient.models.BrowseEndpoint.BrowseEndpointContextSupportedConfigs.BrowseEndpointContextMusicConfig.Companion.MUSIC_PAGE_TYPE_NON_MUSIC_AUDIO_TRACK_PAGE
 import com.vynce.vynceclient.models.BrowseEndpoint.BrowseEndpointContextSupportedConfigs.BrowseEndpointContextMusicConfig.Companion.MUSIC_PAGE_TYPE_PLAYLIST
 import com.vynce.vynceclient.models.BrowseEndpoint.BrowseEndpointContextSupportedConfigs.BrowseEndpointContextMusicConfig.Companion.MUSIC_PAGE_TYPE_PODCAST_SHOW_DETAIL_PAGE
+import com.vynce.vynceclient.models.BrowseEndpoint.BrowseEndpointContextSupportedConfigs.BrowseEndpointContextMusicConfig.Companion.MUSIC_PAGE_TYPE_NON_MUSIC_AUDIO_TRACK_PAGE
 import com.vynce.vynceclient.models.BrowseEndpoint.BrowseEndpointContextSupportedConfigs.BrowseEndpointContextMusicConfig.Companion.MUSIC_PAGE_TYPE_USER_CHANNEL
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonNames
 
@@ -28,7 +31,12 @@ data class MusicResponsiveListItemRenderer(
     val navigationEndpoint: NavigationEndpoint?,
 ) {
     val isSong: Boolean
-        get() = navigationEndpoint == null || navigationEndpoint.watchEndpoint != null || navigationEndpoint.watchPlaylistEndpoint != null
+        get() = navigationEndpoint == null
+                || navigationEndpoint.watchEndpoint != null
+                || navigationEndpoint.watchPlaylistEndpoint != null
+                || overlay?.musicItemThumbnailOverlayRenderer
+            ?.content?.musicPlayButtonRenderer
+            ?.playNavigationEndpoint?.watchEndpoint != null
     val isPlaylist: Boolean
         get() = navigationEndpoint?.browseEndpoint?.browseEndpointContextSupportedConfigs?.browseEndpointContextMusicConfig?.pageType == MUSIC_PAGE_TYPE_PLAYLIST
     val isAlbum: Boolean
@@ -72,8 +80,7 @@ data class MusicResponsiveListItemRenderer(
                         ?.browseEndpointContextMusicConfig
                         ?.pageType == MUSIC_PAGE_TYPE_PODCAST_SHOW_DETAIL_PAGE
                 } == true
-            val hasVideoId = playlistItemData?.videoId != null ||
-                navigationEndpoint?.watchEndpoint?.videoId != null
+            val hasVideoId = videoId != null
             return hasPodcastLink && hasVideoId
         }
 
@@ -86,6 +93,22 @@ data class MusicResponsiveListItemRenderer(
                 ?.playNavigationEndpoint
                 ?.musicVideoType
                 ?: navigationEndpoint?.musicVideoType
+
+    val videoId: String?
+        get() = playlistItemData?.videoId
+            ?: flexColumns.firstOrNull()
+                ?.musicResponsiveListItemFlexColumnRenderer
+                ?.text?.runs?.firstOrNull()
+                ?.navigationEndpoint?.watchEndpoint?.videoId
+            ?: overlay?.musicItemThumbnailOverlayRenderer
+                ?.content?.musicPlayButtonRenderer
+                ?.playNavigationEndpoint?.watchEndpoint?.videoId
+
+    val playlistSetVideoId: String?
+        get() = playlistItemData?.playlistSetVideoId
+            ?: overlay?.musicItemThumbnailOverlayRenderer
+                ?.content?.musicPlayButtonRenderer
+                ?.playNavigationEndpoint?.watchEndpoint?.playlistSetVideoId
 
     @Serializable
     data class FlexColumn(
@@ -124,15 +147,3 @@ data class MusicResponsiveListItemRenderer(
         }
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-

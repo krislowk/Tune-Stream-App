@@ -10,11 +10,19 @@ import com.vynce.music.db.entities.Playlist
 import com.vynce.music.models.Song
 import com.vynce.vynceclient.models.SongItem
 
+fun String.cleanTitle(): String {
+    return this.replace(Regex("""\s?(\(\d{1,2}:\d{2}\)|\[\d{1,2}:\d{2}\])"""), "") // Remove (03:45) or [4:20]
+        .replace(Regex("""\s?(\((?i:Official|Lyric|Video|Audio|MV|HD|HQ|Music Video)\)|\[(?i:Official|Lyric|Video|Audio|MV|HD|HQ|Music Video)\])"""), "") // Remove [Official MV] etc
+        .trim()
+}
+
 fun SongItem.toMediaItem(): MediaItem {
     val extras = Bundle().apply {
         putString("album_id", album?.id)
         putString("artist_id", artists.firstOrNull()?.id)
+        putString("playlist_id", endpoint?.playlistId)
         putString("share_link", shareLink)
+        putString("source", "YouTube")
         putInt("lyrics_offset", 0)
     }
     return MediaItem.Builder()
@@ -22,7 +30,7 @@ fun SongItem.toMediaItem(): MediaItem {
         .setUri(android.net.Uri.EMPTY)
         .setMediaMetadata(
             MediaMetadata.Builder()
-                .setTitle(title)
+                .setTitle(title.cleanTitle())
                 .setArtist(artists.joinToString { it.name })
                 .setArtworkUri(thumbnail.toUri())
                 .setExtras(extras)
@@ -34,13 +42,14 @@ fun SongItem.toMediaItem(): MediaItem {
 fun Song.toMediaItem(): MediaItem {
     val extras = Bundle().apply {
         putInt("lyrics_offset", lyricsOffset)
+        putString("source", if (isYoutube) "YouTube" else "Local")
     }
     return MediaItem.Builder()
         .setMediaId(mediaId)
         .setUri(if (!isYoutube && contentUri.isNotEmpty()) contentUri.toUri() else android.net.Uri.EMPTY)
         .setMediaMetadata(
             MediaMetadata.Builder()
-                .setTitle(title)
+                .setTitle(title.cleanTitle())
                 .setArtist(artist)
                 .setAlbumTitle(album)
                 .setArtworkUri(thumbnail.toUri())
@@ -94,6 +103,9 @@ fun Artist.toMediaItem(): MediaItem {
         )
         .build()
 }
+
+
+
 
 
 

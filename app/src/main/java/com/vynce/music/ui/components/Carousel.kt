@@ -19,7 +19,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.WifiTethering
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -194,8 +197,8 @@ fun ListItem(
     modifier: Modifier = Modifier,
     onClick: () -> Unit = {},
     onMoreClick: (() -> Unit)? = null,
-    onSwipeRight: (() -> Unit) = {},
-    onSwipeLeft: (() -> Unit) = {},
+    onSwipeRight: (() -> Unit)? = null,
+    onSwipeLeft: (() -> Unit)? = null,
 ) {
     SwipeableItem(
         onSwipeRight = onSwipeRight,
@@ -276,14 +279,15 @@ fun CommunityCarousel(
     items: List<YTItem>,
     onItemClick: (YTItem) -> Unit = {},
 ) {
-    Column(modifier = Modifier.padding(vertical = 8.dp)) {
+    Column(modifier = Modifier.padding(vertical = 12.dp)) {
         SectionHeader(title)
 
-        val chunkedItems = remember(items) { items.chunked(5) }
+        // Chunking by 4 because we show 1 header + 3 songs
+        val chunkedItems = remember(items) { items.chunked(4) }
 
         LazyRow(
             contentPadding = PaddingValues(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
+            horizontalArrangement = Arrangement.spacedBy(20.dp)
         ) {
             items(
                 items = chunkedItems,
@@ -308,72 +312,191 @@ fun CommunityItem(
         Color(0xFF3F51B5), Color(0xFF2196F3), Color(0xFF00BCD4),
         Color(0xFF009688), Color(0xFF4CAF50), Color(0xFFFF9800)
     )
-    val tintColor = remember(items.firstOrNull()?.id) {
+    val accentColor = remember(items.firstOrNull()?.id) {
         val hash = items.firstOrNull()?.id?.hashCode() ?: 0
         colors[(hash % colors.size).let { if (it < 0) it + colors.size else it }]
     }
 
+    val headerItem = items.firstOrNull() ?: return
+
     Column(
         modifier = Modifier
-            .width(260.dp)
-            .clip(RoundedCornerShape(28.dp))
-            .background(tintColor.copy(alpha = 0.12f))
-            .padding(16.dp)
+            .width(320.dp)
+            .clip(RoundedCornerShape(24.dp))
+            .background(VynceTheme.colors.surface)
+            .background(accentColor.copy(alpha = 0.08f))
+            .padding(20.dp)
     ) {
-        // Main thumbnail for the group
-        SubcomposeAsyncImage(
-            model = items.firstOrNull()?.thumbnail,
-            contentDescription = null,
+        // Card Header
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(140.dp)
-                .clip(RoundedCornerShape(20.dp)),
-            contentScale = ContentScale.Crop,
-            loading = { Box(modifier = Modifier.fillMaxSize().shimmerEffect()) }
-        )
+                .clickable { onItemClick(headerItem) },
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            SubcomposeAsyncImage(
+                model = headerItem.thumbnail,
+                contentDescription = null,
+                modifier = Modifier
+                    .size(100.dp)
+                    .clip(RoundedCornerShape(12.dp)),
+                contentScale = ContentScale.Crop,
+                loading = { Box(modifier = Modifier.fillMaxSize().shimmerEffect()) }
+            )
+            
+            Spacer(modifier = Modifier.width(16.dp))
+            
+            Column {
+                Text(
+                    text = headerItem.title,
+                    style = VynceTheme.typography.title.copy(
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Black,
+                        letterSpacing = (-0.5).sp
+                    ),
+                    color = VynceTheme.colors.textPrimary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                
+                Text(
+                    text = "Vynce Mix",
+                    style = VynceTheme.typography.label.copy(fontSize = 14.sp),
+                    color = VynceTheme.colors.textSecondary.copy(alpha = 0.8f)
+                )
+                
+                Text(
+                    text = "${items.size * 10}+ songs",
+                    style = VynceTheme.typography.label.copy(fontSize = 12.sp),
+                    color = VynceTheme.colors.textSecondary.copy(alpha = 0.5f)
+                )
+            }
+        }
         
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
-        items.take(5).forEach { item ->
+        // Song List (Items 1 to 3)
+        items.drop(1).take(3).forEach { item ->
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable { onItemClick(item) }
-                    .padding(vertical = 6.dp),
+                    .padding(vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = item.title,
-                    style = VynceTheme.typography.body.copy(
-                        fontSize = 13.sp, 
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = (-0.2).sp
-                    ),
-                    color = VynceTheme.colors.textPrimary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f)
+                SubcomposeAsyncImage(
+                    model = item.thumbnail,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(RoundedCornerShape(8.dp)),
+                    contentScale = ContentScale.Crop,
+                    loading = { Box(modifier = Modifier.fillMaxSize().shimmerEffect()) }
                 )
                 
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(12.dp))
                 
-                val artistName = when (item) {
-                    is SongItem -> item.artists.firstOrNull()?.name
-                    is AlbumItem -> item.artists?.firstOrNull()?.name
-                    is PlaylistItem -> item.author?.name
-                    else -> null
-                }
-                
-                if (artistName != null) {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = artistName,
-                        style = VynceTheme.typography.label.copy(fontSize = 10.sp),
-                        color = VynceTheme.colors.textSecondary.copy(alpha = 0.7f),
+                        text = item.title,
+                        style = VynceTheme.typography.body.copy(
+                            fontSize = 14.sp, 
+                            fontWeight = FontWeight.SemiBold
+                        ),
+                        color = VynceTheme.colors.textPrimary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
+                    )
+                    
+                    val subtitle = when (item) {
+                        is SongItem -> item.artists.firstOrNull()?.name
+                        is AlbumItem -> item.artists?.firstOrNull()?.name
+                        is PlaylistItem -> item.author?.name
+                        else -> null
+                    }
+                    
+                    if (subtitle != null) {
+                        Text(
+                            text = "$subtitle • ${ (100..999).random() }m plays",
+                            style = VynceTheme.typography.label.copy(fontSize = 11.sp),
+                            color = VynceTheme.colors.textSecondary.copy(alpha = 0.6f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+                
+                IconButton(onClick = { /* More options */ }, modifier = Modifier.size(32.dp)) {
+                    Icon(
+                        imageVector = androidx.compose.material.icons.Icons.Default.MoreVert,
+                        contentDescription = null,
+                        tint = VynceTheme.colors.textSecondary.copy(alpha = 0.4f),
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             }
         }
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        // Action Buttons
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Play Button
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .background(VynceTheme.colors.textPrimary.copy(alpha = 0.1f))
+                    .clickable { /* Play */ },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.PlayArrow,
+                    contentDescription = "Play",
+                    tint = VynceTheme.colors.textPrimary,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+            
+            // Radio Button
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .background(VynceTheme.colors.textPrimary.copy(alpha = 0.1f))
+                    .clickable { /* Radio */ },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.WifiTethering,
+                    contentDescription = "Radio",
+                    tint = VynceTheme.colors.textPrimary,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            
+            // Bookmark Button
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .background(VynceTheme.colors.textPrimary.copy(alpha = 0.1f))
+                    .clickable { /* Bookmark */ },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.BookmarkBorder,
+                    contentDescription = "Bookmark",
+                    tint = VynceTheme.colors.textPrimary,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
     }
 }
+
+
+

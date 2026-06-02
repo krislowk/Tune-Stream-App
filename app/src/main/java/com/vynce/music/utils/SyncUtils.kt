@@ -698,29 +698,85 @@ class SyncUtils @Inject constructor(
     private suspend fun executeSyncEpisodesForLater() = withContext(Dispatchers.IO) {
         if (!isLoggedIn()) return@withContext
         updateState { copy(currentOperation = "Syncing episodes for later") }
+        
         withRetry { YouTube.episodesForLater() }.onSuccess { result ->
-            result.onSuccess { page ->
-                val remoteIds = page.songs.map { it.id }.toSet()
-                val localEpisodes = databaseDao.podcastEpisodesByCreateDateAsc().first().filter { it.song.inLibrary != null }
-                page.songs.forEach { episode ->
-                    val dbSong = databaseDao.getSongById(episode.id).firstOrNull()
-                    databaseDao.runInTransaction {
-                        if (dbSong == null) {
-                            databaseDao.upsert(episode.toMediaMetadata().toSongEntity().copy(inLibrary = LocalDateTime.now(), isEpisode = true))
-                        } else if (!dbSong.song.isEpisode || dbSong.song.inLibrary == null) {
-                            databaseDao.update(dbSong.song.copy(isEpisode = true, inLibrary = LocalDateTime.now()))
+            result.onSuccess { remoteEpisodes ->
+                try {
+                    val remoteIds = remoteEpisodes.map { it.id }.toSet()
+                    
+                    // Get local episodes that are saved (for cleanup later)
+                    val localSavedEpisodes = databaseDao.podcastEpisodesByCreateDateAsc().first()
+                        .filter { it.song.inLibrary != null }
+
+                    remoteEpisodes.forEach { episode ->
+                        try {
+                            val dbSong = databaseDao.getSongById(episode.id).firstOrNull()
+
+                            databaseDao.runInTransaction {
+                                if (dbSong == null) {
+                                    val mediaMetadata = episode.toMediaMetadata()
+                                    databaseDao.upsert(mediaMetadata.toSongEntity().copy(
+                                        inLibrary = LocalDateTime.now(),
+                                        isEpisode = true
+                                    ))
+                                    // Insert artists
+                                    mediaMetadata.artists.forEach { artist ->
+                                        artist.id?.let { artistId ->
+                                            databaseDao.upsert(
+                                                ArtistEntity(
+                                                    id = artistId,
+                                                    name = artist.name,
+                                                )
+                                            )
+                                        }
+                                    }
+                                } else if (!dbSong.song.isEpisode || dbSong.song.inLibrary == null) {
+                                    databaseDao.update(
+                                        dbSong.song.copy(
+                                            isEpisode = true,
+                                            inLibrary = dbSong.song.inLibrary ?: LocalDateTime.now(),
+                                            libraryAddToken = episode.libraryAddToken ?: dbSong.song.libraryAddToken,
+                                            libraryRemoveToken = episode.libraryRemoveToken ?: dbSong.song.libraryRemoveToken,
+                                        )
+                                    )
+                                } else {
+                                    // Update tokens if we got new ones
+                                    if (episode.libraryAddToken != null || episode.libraryRemoveToken != null) {
+                                        databaseDao.update(
+                                            dbSong.song.copy(
+                                                libraryAddToken = episode.libraryAddToken ?: dbSong.song.libraryAddToken,
+                                                libraryRemoveToken = episode.libraryRemoveToken ?: dbSong.song.libraryRemoveToken,
+                                            )
+                                        )
+                                    }
+                                }
+                                // Store setVideoId for removal capability
+                                episode.setVideoId?.let { svid ->
+                                    databaseDao.upsert(SetVideoIdEntity(videoId = episode.id, setVideoId = svid))
+                                }
+                            }
+                            delayMs(DB_OPERATION_DELAY_MS)
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Failed to process episode: ${episode.id}", e)
                         }
-                        episode.setVideoId?.let { svid -> databaseDao.upsert(SetVideoIdEntity(videoId = episode.id, setVideoId = svid)) }
                     }
-                    delayMs(DB_OPERATION_DELAY_MS)
-                }
-                localEpisodes.filterNot { it.id in remoteIds }.forEach {
-                    databaseDao.update(it.song.copy(inLibrary = null))
+
+                    // Cleanup: Remove local episodes that are no longer in Episodes for Later
+                    localSavedEpisodes.filterNot { it.id in remoteIds }.forEach { song ->
+                        try {
+                            databaseDao.runInTransaction {
+                                databaseDao.update(song.song.copy(inLibrary = null))
+                            }
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Failed to cleanup episode: ${song.id}", e)
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error processing episodes", e)
                 }
             }
         }
     }
-
     private suspend fun executeSyncSavedPlaylists() = withContext(Dispatchers.IO) {
         if (!isLoggedIn()) return@withContext
         updateState { copy(playlists = SyncStatus.Syncing, currentOperation = "Syncing saved playlists") }
@@ -873,6 +929,9 @@ class SyncUtils @Inject constructor(
         updateState { SyncState() }
     }
 }
+
+
+
 
 
 

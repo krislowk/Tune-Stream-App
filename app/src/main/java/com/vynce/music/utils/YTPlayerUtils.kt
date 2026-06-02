@@ -5,6 +5,8 @@ import android.net.Uri
 import android.util.Log
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.util.UnstableApi
+import com.vynce.music.db.daos.DatabaseDao
+import com.vynce.music.models.StreamCache
 import com.vynce.music.repository.constants.AudioQuality
 import com.vynce.music.utils.YTPlayerUtils.MAIN_CLIENT
 import com.vynce.music.utils.YTPlayerUtils.STREAM_FALLBACK_CLIENTS
@@ -39,6 +41,8 @@ object YTPlayerUtils {
 
     private val httpClient = OkHttpClient.Builder()
         .proxy(YouTube.proxy)
+        .connectTimeout(5, java.util.concurrent.TimeUnit.SECONDS)
+        .readTimeout(5, java.util.concurrent.TimeUnit.SECONDS)
         .build()
 
     private val poTokenGenerator = PoTokenGenerator()
@@ -46,11 +50,11 @@ object YTPlayerUtils {
     private val MAIN_CLIENT: YouTubeClient = ANDROID_VR_1_43_32
 
     private val STREAM_FALLBACK_CLIENTS: Array<YouTubeClient> = arrayOf(
-        TVHTML5_SIMPLY_EMBEDDED_PLAYER,  // Try embedded player first for age-restricted content
+        ANDROID_VR_NO_AUTH,
         ANDROID_VR_1_61_48,
         ANDROID_CREATOR,
+        TVHTML5_SIMPLY_EMBEDDED_PLAYER,
         IPADOS,
-        ANDROID_VR_NO_AUTH,
         MOBILE,
         IOS,
         WEB,
@@ -77,7 +81,34 @@ object YTPlayerUtils {
         playlistId: String? = null,
         audioQuality: AudioQuality,
         connectivityManager: ConnectivityManager,
+        databaseDao: DatabaseDao? = null
     ): Result<PlaybackData> = runCatching {
+
+        // 1. Check Cache
+        if (databaseDao != null) {
+            databaseDao.getStream(videoId)?.let { cached ->
+                val age = System.currentTimeMillis() - cached.timestamp
+                if (age < 5 * 3600 * 1000) { // 5 hours cache
+                    Log.d(TAG, "Cache hit for $videoId")
+                    val metadata = playerResponseForMetadata(videoId, playlistId).getOrNull()
+                    if (metadata != null) {
+                        val format = metadata.streamingData?.adaptiveFormats?.find { it.bitrate == cached.bitrate && it.mimeType == cached.mimeType }
+                            ?: metadata.streamingData?.adaptiveFormats?.find { it.isAudio }
+                        
+                        if (format != null) {
+                            return@runCatching PlaybackData(
+                                audioConfig = metadata.playerConfig?.audioConfig,
+                                videoDetails = metadata.videoDetails,
+                                playbackTracking = metadata.playbackTracking,
+                                format = format,
+                                streamUrl = cached.url,
+                                streamExpiresInSeconds = (metadata.streamingData?.expiresInSeconds ?: 3600) - (age / 1000).toInt()
+                            )
+                        }
+                    }
+                }
+            }
+        }
 
         val traceId = System.currentTimeMillis().toString().takeLast(6)
         Log.d(TAG, "================ TRACE START [$traceId] ================")
@@ -352,7 +383,9 @@ object YTPlayerUtils {
                     break
                 }
 
-                if (validateStatus(streamUrl)) {
+                // Optimization: Trust MAIN_CLIENT for normal tracks
+                val shouldValidate = clientIndex != -1 || isAgeRestricted || isUploadedTrack
+                if (!shouldValidate || validateStatus(streamUrl)) {
                     // working stream found
                     Log.d(logTag, "Stream validated successfully with client: ${currentClient.clientName}")
                     // Log for release builds
@@ -411,6 +444,16 @@ object YTPlayerUtils {
             Log.e(logTag, "Could not find stream url")
             throw Exception("Could not find stream url")
         }
+
+        // 2. Save to Cache
+        databaseDao?.upsertStream(
+            StreamCache(
+                videoId = videoId,
+                url = streamUrl,
+                bitrate = format.bitrate,
+                mimeType = format.mimeType
+            )
+        )
 
         Log.d(logTag, "Successfully obtained playback data with format: ${format.mimeType}, bitrate: ${format.bitrate}")
         if (isUploadedTrack) {
@@ -666,3 +709,6 @@ object YTPlayerUtils {
         Log.d(logTag, "Force refreshing for videoId: $videoId")
     }
 }
+
+
+

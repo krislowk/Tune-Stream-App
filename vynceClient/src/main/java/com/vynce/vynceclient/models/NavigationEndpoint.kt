@@ -68,15 +68,3 @@ data class NavigationEndpoint(
             ?.watchEndpointMusicConfig
             ?.musicVideoType
 }
-
-
-
-
-
-
-
-
-
-
-
-

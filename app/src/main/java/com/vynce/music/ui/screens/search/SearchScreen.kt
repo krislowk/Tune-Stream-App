@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -28,7 +29,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
@@ -46,7 +46,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.media3.common.util.UnstableApi
 import com.vynce.music.ui.components.ListItem
@@ -98,85 +100,108 @@ fun SearchScreen(
 
     Scaffold(
         topBar = {
-            Column(modifier = Modifier.background(colors.background)) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .statusBarsPadding()
-                        .padding(top = 8.dp)
-                ) {
-                    val searchBarColors = SearchBarDefaults.colors(
-                        containerColor = colors.surface,
-                    )
-                    SearchBar(
-                        inputField = {
-                            SearchBarDefaults.InputField(
-                                query = query,
-                                onQueryChange = { newQuery -> viewModel.updateQuery(newQuery) },
-                                onSearch = { searchQuery ->
-                                    viewModel.search(searchQuery, selectedFilter)
-                                    active = false
-                                    focusManager.clearFocus()
-                                },
-                                expanded = active,
-                                onExpandedChange = { isExpanded -> active = isExpanded },
-                                enabled = true,
-                                placeholder = { Text("Songs, artists, albums", color = colors.textSecondary) },
-                                leadingIcon = {
-                                    IconButton(onClick = { if (active && query.isEmpty()) onBackClick() else if (active) active = false else onBackClick() }) {
+            Column(
+                modifier = Modifier
+                    .background(colors.background)
+                    .statusBarsPadding()
+            ) {
+                val searchBarColors = SearchBarDefaults.colors(
+                    containerColor = colors.surface,
+                )
+                
+                SearchBar(
+                    inputField = {
+                        SearchBarDefaults.InputField(
+                            query = query,
+                            onQueryChange = { newQuery -> viewModel.updateQuery(newQuery) },
+                            onSearch = { searchQuery ->
+                                viewModel.search(searchQuery, selectedFilter)
+                                active = false
+                                focusManager.clearFocus()
+                            },
+                            expanded = active,
+                            onExpandedChange = { isExpanded -> active = isExpanded },
+                            enabled = true,
+                            placeholder = { 
+                                Text(
+                                    "Search songs, artists, albums...", 
+                                    color = colors.textSecondary.copy(alpha = 0.5f),
+                                    style = VynceTheme.typography.body.copy(fontSize = 15.sp)
+                                ) 
+                            },
+                            leadingIcon = {
+                                IconButton(onClick = { 
+                                    if (active) {
+                                        active = false
+                                        focusManager.clearFocus()
+                                    } else {
+                                        onBackClick()
+                                    }
+                                }) {
+                                    Icon(
+                                        if (active) Icons.Default.Close else Icons.AutoMirrored.Filled.ArrowBack,
+                                        contentDescription = "Back",
+                                        tint = colors.textPrimary.copy(alpha = 0.7f)
+                                    )
+                                }
+                            },
+                            trailingIcon = {
+                                if (query.isNotEmpty() && active) {
+                                    IconButton(onClick = { viewModel.updateQuery("") }) {
                                         Icon(
-                                            Icons.AutoMirrored.Filled.ArrowBack,
-                                            contentDescription = "Back",
+                                            Icons.Default.Close,
+                                            contentDescription = "Clear",
                                             tint = colors.textPrimary
                                         )
                                     }
-                                },
-                                trailingIcon = {
-                                    if (query.isNotEmpty()) {
-                                        IconButton(onClick = { viewModel.updateQuery("") }) {
-                                            Icon(
-                                                Icons.Default.Close,
-                                                contentDescription = "Clear",
-                                                tint = colors.textPrimary
-                                            )
-                                        }
-                                    }
-                                },
-                                colors = searchBarColors.inputFieldColors,
-                            )
-                        },
-                        expanded = active,
-                        onExpandedChange = { isExpanded -> active = isExpanded },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = if (active) 0.dp else 16.dp),
-                        colors = searchBarColors,
-                        content = {
-                            // Suggestions List
-                            suggestions?.queries?.let { queries ->
-                                LazyColumn(modifier = Modifier.fillMaxSize()) {
-                                    items(queries) { suggestion ->
-                                        SuggestionItem(
-                                            suggestion = suggestion,
-                                            onClick = {
-                                                viewModel.updateQuery(suggestion)
-                                                viewModel.search(suggestion, selectedFilter)
-                                                active = false
-                                                focusManager.clearFocus()
-                                            }
+                                } else if (!active) {
+                                    IconButton(onClick = { active = true }) {
+                                        Icon(
+                                            Icons.Default.Search,
+                                            contentDescription = "Search",
+                                            tint = colors.textPrimary.copy(alpha = 0.7f)
                                         )
                                     }
                                 }
+                            },
+                            colors = searchBarColors.inputFieldColors,
+                        )
+                    },
+                    expanded = active,
+                    onExpandedChange = { isExpanded -> active = isExpanded },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = if (active) 0.dp else 16.dp)
+                        .padding(top = 8.dp),
+                    colors = searchBarColors,
+                    content = {
+                        // Suggestions List
+                        suggestions?.queries?.let { queries ->
+                            LazyColumn(
+                                modifier = Modifier.fillMaxSize(),
+                                contentPadding = PaddingValues(vertical = 8.dp)
+                            ) {
+                                items(queries) { suggestion ->
+                                    SuggestionItem(
+                                        suggestion = suggestion,
+                                        onClick = {
+                                            viewModel.updateQuery(suggestion)
+                                            viewModel.search(suggestion, selectedFilter)
+                                            active = false
+                                            focusManager.clearFocus()
+                                        }
+                                    )
+                                }
                             }
-                        },
-                    )
-                }
+                        }
+                    },
+                )
 
                 if (!active && query.isNotEmpty()) {
                     LazyRow(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 8.dp),
+                            .padding(top = 12.dp, bottom = 8.dp),
                         contentPadding = PaddingValues(horizontal = 16.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
@@ -184,8 +209,15 @@ fun SearchScreen(
                             FilterChip(
                                 selected = selectedFilter == filter,
                                 onClick = { viewModel.setFilter(filter) },
-                                label = { Text(label) },
-                                shape = RoundedCornerShape(20.dp),
+                                label = { 
+                                    Text(
+                                        label,
+                                        style = VynceTheme.typography.label.copy(
+                                            fontWeight = if (selectedFilter == filter) FontWeight.Bold else FontWeight.Medium
+                                        )
+                                    ) 
+                                },
+                                shape = RoundedCornerShape(12.dp),
                                 colors = FilterChipDefaults.filterChipColors(
                                     selectedContainerColor = colors.primary,
                                     selectedLabelColor = colors.onPrimary,
@@ -203,79 +235,113 @@ fun SearchScreen(
     ) { padding ->
         Box(modifier = Modifier.padding(padding).fillMaxSize()) {
             if (isLoading) {
-                CircularProgressIndicator(
-                    modifier = Modifier.align(Alignment.Center),
-                    color = colors.primary
-                )
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(
+                        color = colors.primary,
+                        strokeWidth = 3.dp,
+                        modifier = Modifier.size(40.dp)
+                    )
+                }
             } else {
                 val result = searchResult
-                if (result != null && !active) {
-                    // Show Results
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(bottom = 88.dp)
-                    ) {
-                        itemsIndexed(
-                            items = result.items,
-                            key = { _, item -> item.id }
-                        ) { index, item ->
-                            if (index >= result.items.size - 1) {
-                                LaunchedEffect(result.items.size) {
-                                    viewModel.loadMore()
+                if (!active && query.isNotEmpty()) {
+                    if (result != null && result.items.isNotEmpty()) {
+                        // Show Results
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(top = 8.dp, bottom = 88.dp)
+                        ) {
+                            itemsIndexed(
+                                items = result.items,
+                                key = { _, item -> item.id }
+                            ) { index, item ->
+                                if (index >= result.items.size - 1) {
+                                    LaunchedEffect(result.items.size) {
+                                        viewModel.loadMore()
+                                    }
                                 }
+
+                                ListItem(
+                                    item = item,
+                                    onClick = {
+                                        when (item) {
+                                            is SongItem -> playerViewModel.play(item.toMediaItem())
+                                            is AlbumItem -> onItemClick("album", item.browseId)
+                                            is ArtistItem -> onItemClick("artist", item.id)
+                                            is PlaylistItem -> onItemClick("playlist", item.id)
+                                            else -> {}
+                                        }
+                                    },
+                                    onMoreClick = if (item is SongItem) {
+                                        {
+                                            selectedItemForOptions = item
+                                            showMoreOptions = true
+                                        }
+                                    } else null,
+                                    onSwipeRight = {
+                                        if (item is SongItem) {
+                                            playerViewModel.addToQueue(item.toMediaItem())
+                                        }
+                                    }
+                                )
                             }
 
-                            ListItem(
-                                item = item,
-                                onClick = {
-                                    when (item) {
-                                        is SongItem -> playerViewModel.play(item.toMediaItem())
-                                        is AlbumItem -> onItemClick("album", item.browseId)
-                                        is ArtistItem -> onItemClick("artist", item.id)
-                                        is PlaylistItem -> onItemClick("playlist", item.id)
-                                        else -> {}
-                                    }
-                                },
-                                onMoreClick = if (item is SongItem) {
-                                    {
-                                        selectedItemForOptions = item
-                                        showMoreOptions = true
-                                    }
-                                } else null,
-                                onSwipeRight = {
-                                    if (item is SongItem) {
-                                        playerViewModel.addToQueue(item.toMediaItem())
+                            if (isLoadingMore) {
+                                item {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(24.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        CircularProgressIndicator(
+                                            color = colors.primary,
+                                            modifier = Modifier.size(24.dp),
+                                            strokeWidth = 2.dp
+                                        )
                                     }
                                 }
-                            )
-
-                            HorizontalDivider(
-                                modifier = Modifier.padding(horizontal = 16.dp),
-                                thickness = 0.5.dp,
-                                color = colors.glassBorder.copy(alpha = 0.1f)
-                            )
+                            }
                         }
-
-                        if (isLoadingMore) {
-                            item {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(24.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    CircularProgressIndicator(
-                                        color = colors.primary,
-                                        modifier = Modifier.size(24.dp),
-                                        strokeWidth = 2.dp
-                                    )
-                                }
-                            }
+                    } else if (result != null) {
+                        // No results found for query
+                        Column(
+                            modifier = Modifier.fillMaxSize(),
+                            verticalArrangement = Arrangement.Center,
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Icon(
+                                Icons.Default.Search,
+                                contentDescription = null,
+                                modifier = Modifier.size(64.dp),
+                                tint = colors.textSecondary.copy(alpha = 0.2f)
+                            )
+                            Spacer(Modifier.height(16.dp))
+                            Text(
+                                "No results found for \"$query\"",
+                                color = colors.textSecondary.copy(alpha = 0.6f),
+                                style = VynceTheme.typography.body
+                            )
                         }
                     }
                 } else if (!active && query.isEmpty()) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text("Search for your favorite music", color = colors.textSecondary)
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.Center,
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(
+                            Icons.Default.Search,
+                            contentDescription = null,
+                            modifier = Modifier.size(64.dp),
+                            tint = colors.textSecondary.copy(alpha = 0.2f)
+                        )
+                        Spacer(Modifier.height(16.dp))
+                        Text(
+                            "Find your favorite music", 
+                            color = colors.textSecondary.copy(alpha = 0.6f),
+                            style = VynceTheme.typography.body
+                        )
                     }
                 }
             }
@@ -329,6 +395,9 @@ fun SuggestionItem(suggestion: String, onClick: () -> Unit) {
         )
     }
 }
+
+
+
 
 
 

@@ -11,6 +11,7 @@ import com.vynce.music.db.entities.AlbumEntity
 import com.vynce.music.db.entities.ArtistEntity
 import com.vynce.music.db.entities.Event
 import com.vynce.music.db.entities.FormatEntity
+import com.vynce.music.db.entities.LyricsEntity
 import com.vynce.music.db.entities.PlayCountEntity
 import com.vynce.music.db.entities.PlaylistEntity
 import com.vynce.music.db.entities.PlaylistSongMap
@@ -26,7 +27,6 @@ import com.vynce.music.db.entities.SongEntity
 import com.vynce.music.db.entities.SortedSongAlbumMap
 import com.vynce.music.db.entities.SortedSongArtistMap
 import com.vynce.music.db.entities.SpeedDialItem
-import com.vynce.music.db.entities.SyncedLyric
 import com.vynce.music.models.AuthSession
 import com.vynce.music.models.History
 import com.vynce.music.models.Song
@@ -57,14 +57,14 @@ import com.vynce.music.models.User
         RecognitionHistory::class,
         PlayCountEntity::class,
         RelatedSongMap::class,
-        SyncedLyric::class
+        LyricsEntity::class
     ],
     views = [
         PlaylistSongMapPreview::class,
         SortedSongAlbumMap::class,
         SortedSongArtistMap::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -92,6 +92,9 @@ abstract class MusicDatabase : RoomDatabase() {
         }
     }
 }
+
+
+
 
 
 

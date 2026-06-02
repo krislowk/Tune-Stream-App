@@ -1,14 +1,14 @@
 package com.vynce.vynceclient
 
 import com.vynce.vynceclient.models.YouTubeClient
-import com.vynce.vynceclient.models.YtLocale
+import com.vynce.vynceclient.models.YouTubeLocale
 import io.ktor.client.HttpClient
 import io.ktor.client.statement.HttpResponse
 import java.net.Proxy
 
 interface ApiProvider {
 
-    var locale: YtLocale
+    var locale: YouTubeLocale
     var visitorData: String?
     var cookie: String?
     var proxy: Proxy?
@@ -70,6 +70,9 @@ interface ApiProvider {
 
     fun getHttpClient(): HttpClient
 }
+
+
+
 
 
 

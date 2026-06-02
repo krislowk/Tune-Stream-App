@@ -12,11 +12,22 @@ import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.MoreExecutors
+import com.vynce.music.db.MusicDatabase
+import com.vynce.music.db.entities.LyricsEntity
+import com.vynce.music.lyrics.GeminiService
+import com.vynce.music.lyrics.LyricsEntry
+import com.vynce.music.lyrics.LyricsParser
+import com.vynce.music.lyrics.LyricsTranslationHelper
 import com.vynce.music.models.Song
+import com.vynce.music.repository.PreferenceRepository
 import com.vynce.music.repository.SongRepository
 import com.vynce.music.service.MusicService
 import com.vynce.music.utils.toMediaItem
 import com.vynce.vynceclient.YouTube
+import com.vynce.vynceclient.models.AlbumItem
+import com.vynce.vynceclient.models.ArtistItem
+import com.vynce.vynceclient.models.BrowseEndpoint
+import com.vynce.vynceclient.models.PlaylistItem
 import com.vynce.vynceclient.models.WatchEndpoint
 import com.vynce.vynceclient.pages.NextResult
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -42,18 +53,24 @@ data class PlayerUiState(
     val queue: List<MediaItem> = emptyList(),
     val currentIndex: Int = -1,
     val relatedSongs: List<MediaItem> = emptyList(),
+    val relatedAlbums: List<AlbumItem> = emptyList(),
+    val relatedArtists: List<ArtistItem> = emptyList(),
+    val relatedPlaylists: List<PlaylistItem> = emptyList(),
     val isFetchingMetadata: Boolean = false,
     val isLiked: Boolean = false,
     val isAutoplayEnabled: Boolean = true,
     val lyricsOffset: Int = 0,
-    val currentPosition: Long = 0L
+    val currentPosition: Long = 0L,
+    val lyrics: List<LyricsEntry> = emptyList(),
+    val isLyricsLoading: Boolean = false
 )
 
 @UnstableApi
 @HiltViewModel
 class PlayerViewModel @Inject constructor(
     private val application: Application,
-    private val songRepository: SongRepository
+    private val songRepository: SongRepository,
+    private val preferenceRepository: PreferenceRepository
 ) : ViewModel() {
 
     // ==================== PLAYER STATE ====================
@@ -66,10 +83,6 @@ class PlayerViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(PlayerUiState())
     val uiState = _uiState.asStateFlow()
-
-    // ==================== LYRICS STATE ====================
-    private val _isSyncing = MutableStateFlow(false)
-    val isSyncing = _isSyncing.asStateFlow()
 
     // ==================== METADATA ====================
     private var metadataJob: kotlinx.coroutines.Job? = null
@@ -153,24 +166,6 @@ class PlayerViewModel @Inject constructor(
         }
     }
 
-    // ==================== LYRICS MANAGEMENT ====================
-
-    fun startLyricsSync() {
-        // No-op - LyricsManager removed
-    }
-
-    fun finalizeLyricsSync() {
-        // No-op - LyricsManager removed
-    }
-
-    fun cancelLyricsSync() {
-        // No-op - LyricsManager removed
-    }
-
-    fun searchLyricsOnline() {
-        // No-op - LyricsManager removed
-    }
-
     // ==================== METADATA FETCHING ====================
 
     private fun fetchMetadata(videoId: String) {
@@ -227,6 +222,7 @@ class PlayerViewModel @Inject constructor(
 
                 // Load content in parallel
                 launch { loadRelated(result) }
+                launch { loadLyrics(videoId, result.lyricsEndpoint) }
 
             } catch (e: Exception) {
                 if (e !is CancellationException) {
@@ -245,8 +241,162 @@ class PlayerViewModel @Inject constructor(
         }
 
         _uiState.update { state ->
-            state.copy(relatedSongs = related?.songs?.map { it.toMediaItem() } ?: emptyList())
+            state.copy(
+                relatedSongs = related?.songs?.map { it.toMediaItem() } ?: emptyList(),
+                relatedAlbums = related?.albums ?: emptyList(),
+                relatedArtists = related?.artists ?: emptyList(),
+                relatedPlaylists = related?.playlists ?: emptyList()
+            )
         }
+    }
+
+    private suspend fun loadLyrics(videoId: String, endpoint: BrowseEndpoint?) {
+        _uiState.update { it.copy(isLyricsLoading = true, lyrics = emptyList()) }
+
+        val dbLyrics: LyricsEntity? = withContext(Dispatchers.IO) {
+            songRepository.getLyrics(videoId)
+        }
+
+        if (dbLyrics != null) {
+            val entries = LyricsParser.parse(dbLyrics.lyrics)
+            _uiState.update { it.copy(lyrics = entries, isLyricsLoading = false) }
+
+            // Try to load translations if any
+            LyricsTranslationHelper.loadTranslationsFromDatabase(
+                lyrics = entries,
+                lyricsEntity = dbLyrics,
+                targetLanguage = "en", // TODO: Get from settings
+                mode = "Natural"
+            )
+            return
+        }
+
+        val currentTrack = _uiState.value.currentTrack
+        val artist = currentTrack?.mediaMetadata?.artist?.toString() ?: ""
+        val title = currentTrack?.mediaMetadata?.title?.toString() ?: ""
+        val duration = (_uiState.value.duration / 1000).toInt()
+
+        // 1. Try YouTube Transcript (Synced)
+        val youtubeTranscript = withContext(Dispatchers.IO) {
+            YouTube.transcript(videoId).getOrNull()
+        }
+        if (youtubeTranscript != null) {
+            processAndSaveLyrics(videoId, youtubeTranscript, title, artist, duration)
+            return
+        }
+
+        // 2. Try LRCLIB (Synced/Plain)
+        if (artist.isNotEmpty() && title.isNotEmpty()) {
+            val lrclibResult = withContext(Dispatchers.IO) {
+                YouTube.lrclibLyrics(artist, title, duration).getOrNull()
+            }
+            if (lrclibResult != null) {
+                processAndSaveLyrics(videoId, lrclibResult, title, artist, duration)
+                return
+            }
+        }
+
+        // 3. Try NetEase (Synced/Translated)
+        if (artist.isNotEmpty() && title.isNotEmpty()) {
+            val neteaseResult = withContext(Dispatchers.IO) {
+                YouTube.neteaseLyrics(title, artist).getOrNull()
+            }
+            if (neteaseResult != null) {
+                processAndSaveLyrics(videoId, neteaseResult, title, artist, duration)
+                return
+            }
+        }
+
+        // 4. Try QQ Music (Synced)
+        if (artist.isNotEmpty() && title.isNotEmpty()) {
+            val qqResult = withContext(Dispatchers.IO) {
+                YouTube.qqLyrics(title, artist).getOrNull()
+            }
+            if (qqResult != null) {
+                processAndSaveLyrics(videoId, qqResult, title, artist, duration)
+                return
+            }
+        }
+
+        // 5. Try YouTube Static Lyrics
+        if (endpoint != null) {
+            val staticResult = withContext(Dispatchers.IO) {
+                YouTube.lyrics(endpoint).getOrNull()
+            }
+            if (staticResult != null) {
+                processAndSaveLyrics(videoId, staticResult, title, artist, duration)
+                return
+            }
+        }
+
+        _uiState.update { it.copy(isLyricsLoading = false) }
+    }
+
+    fun generateLyricsWithGemini() {
+        val currentTrack = _uiState.value.currentTrack ?: return
+        val videoId = currentTrack.mediaId
+        val artist = currentTrack.mediaMetadata.artist?.toString() ?: ""
+        val title = currentTrack.mediaMetadata.title?.toString() ?: ""
+        val duration = (_uiState.value.duration / 1000).toInt()
+
+        _uiState.update { it.copy(isLyricsLoading = true) }
+
+        viewModelScope.launch {
+            val geminiGenerated = withContext(Dispatchers.IO) {
+                GeminiService.generateLyrics(
+                    title = title,
+                    artist = artist,
+                    apiKey = "AIzaSyCbtMgl7JO0qr7tfyi14723oPUyryfJDzA", // TODO: Get from preferences
+                    model = "gemini-3.5-flash"
+                ).getOrNull()
+            }
+
+            if (geminiGenerated != null) {
+                processAndSaveLyrics(videoId, geminiGenerated, title, artist, duration)
+            } else {
+                _uiState.update { it.copy(isLyricsLoading = false) }
+            }
+        }
+    }
+
+    private suspend fun processAndSaveLyrics(
+        videoId: String,
+        lyricsText: String,
+        title: String,
+        artist: String,
+        duration: Int
+    ) {
+        val parsed = LyricsParser.parse(lyricsText)
+        if (parsed.isEmpty()) return
+
+        // Check if lyrics are static (no timestamps or all same)
+        val isStatic = parsed.all { it.time == 0L } || (parsed.size > 1 && parsed[0].time == parsed[1].time)
+        
+        val finalLyrics = if (isStatic && duration > 0) {
+            withContext(Dispatchers.IO) {
+                GeminiService.generateTimedLyrics(
+                    lyrics = lyricsText,
+                    title = title,
+                    artist = artist,
+                    durationSeconds = duration,
+                    apiKey = "AIzaSyCbtMgl7JO0qr7tfyi14723oPUyryfJDzA", // TODO: Get from preferences
+                    model = "gemini-1.5-flash"
+                ).getOrNull() ?: lyricsText
+            }
+        } else {
+            lyricsText
+        }
+
+        val entries = LyricsParser.parse(finalLyrics)
+        _uiState.update { it.copy(lyrics = entries, isLyricsLoading = false) }
+
+        withContext(Dispatchers.IO) {
+            songRepository.upsertLyrics(videoId, finalLyrics)
+        }
+    }
+
+    private fun parseLyrics(lyricsText: String): List<LyricsEntry> {
+        return LyricsParser.parse(lyricsText)
     }
 
     // ==================== PLAYER CONTROLS ====================
@@ -333,10 +483,42 @@ class PlayerViewModel @Inject constructor(
         }
     }
 
+    fun playAlbum(album: AlbumItem) {
+        playQueue(WatchEndpoint(playlistId = album.playlistId))
+    }
+
+    fun playArtist(artist: ArtistItem) {
+        artist.playEndpoint?.let { playQueue(it) } ?: artist.shuffleEndpoint?.let { playQueue(it) }
+    }
+
+    fun playPlaylist(playlist: PlaylistItem) {
+        playlist.playEndpoint?.let { playQueue(it) }
+    }
+
     fun addToPlaylist(playlistId: String, videoId: String) {
         viewModelScope.launch {
             YouTube.addToPlaylist(playlistId, videoId)
         }
+    }
+
+    fun translateLyrics() {
+        val currentLyrics = _uiState.value.lyrics
+        if (currentLyrics.isEmpty()) return
+
+        val videoId = _uiState.value.currentTrack?.mediaId ?: return
+
+        LyricsTranslationHelper.translateLyrics(
+            lyrics = currentLyrics,
+            targetLanguage = "en", // TODO: Get from preferences
+            apiKey = "AIzaSyCbtMgl7JO0qr7tfyi14723oPUyryfJDzA", // TODO: Get from preferences
+            baseUrl = "https://generativelanguage.googleapis.com",
+            model = "gemini-1.5-flash",
+            mode = "Natural",
+            scope = viewModelScope,
+            context = application,
+            songId = videoId,
+            database = MusicDatabase.getInstance(application)
+        )
     }
 
     // ==================== REPOSITORY ACTIONS ====================
@@ -401,3 +583,5 @@ class PlayerViewModel @Inject constructor(
         super.onCleared()
     }
 }
+
+

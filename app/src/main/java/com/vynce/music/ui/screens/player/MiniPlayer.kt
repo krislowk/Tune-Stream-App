@@ -135,8 +135,10 @@ fun MiniPlayer(
                         maxLines = 1,
                         modifier = Modifier.basicMarquee()
                     )
+                    val artist = song.mediaMetadata.artist?.toString() ?: "Unknown Artist"
+                    val source = song.mediaMetadata.extras?.getString("source")
                     Text(
-                        text = song.mediaMetadata.artist?.toString() ?: "Unknown Artist",
+                        text = if (source != null) artist else artist,
                         style = VynceTheme.typography.label.copy(fontSize = 12.sp),
                         color = colors.textSecondary,
                         maxLines = 1,
@@ -195,6 +197,9 @@ fun MiniPlayer(
         }
     }
 }
+
+
+
 
 
 

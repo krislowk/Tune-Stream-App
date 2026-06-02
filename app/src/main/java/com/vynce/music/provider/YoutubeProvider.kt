@@ -34,8 +34,8 @@ class YoutubeProvider @Inject constructor(){
             .onFailure { throw it }
     }.flowOn(Dispatchers.IO)
 
-    fun getExplore(continuation: String? = null) = flow {
-        YouTube.explore(continuation = continuation)
+    fun getExplore() = flow {
+        YouTube.explore()
             .onSuccess { emit(it) }
             .onFailure { throw it }
     }.flowOn(Dispatchers.IO)
@@ -70,6 +70,9 @@ class YoutubeProvider @Inject constructor(){
             .onFailure { throw it }
     }.flowOn(Dispatchers.IO)
 }
+
+
+
 
 
 

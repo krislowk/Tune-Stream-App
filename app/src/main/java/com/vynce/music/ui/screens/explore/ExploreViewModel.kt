@@ -51,7 +51,7 @@ class ExploreViewModel @Inject constructor(
         if (continuation != null && !_isLoadingMore.value) {
             viewModelScope.launch {
                 _isLoadingMore.value = true
-                youtubeProvider.getExplore(continuation)
+                youtubeProvider.getExplore()
                     .catch { e ->
                         _isLoadingMore.value = false
                         e.printStackTrace()
@@ -68,6 +68,9 @@ class ExploreViewModel @Inject constructor(
         }
     }
 }
+
+
+
 
 
 

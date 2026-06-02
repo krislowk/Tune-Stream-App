@@ -47,7 +47,7 @@ class PreferenceRepository @Inject constructor(
             }
 
             // If visitorData is still the default or missing, fetch a fresh one
-            if (YouTube.visitorData?.isBlank() == true || YouTube.visitorData == YouTube.DEFAULT_VISITOR_DATA) {
+            if (YouTube.visitorData.isNullOrBlank() || YouTube.visitorData == YouTube.DEFAULT_VISITOR_DATA) {
                 YouTube.visitorData().onSuccess { data ->
                     YouTube.visitorData = data
                     // Save to DataStore and DB for next startup
@@ -118,6 +118,9 @@ class PreferenceRepository @Inject constructor(
     fun getInt(key: Preferences.Key<Int>, default: Int): Int = getBlocking(key, default)
     fun getFloat(key: Preferences.Key<Float>, default: Float): Float = getBlocking(key, default)
 }
+
+
+
 
 
 

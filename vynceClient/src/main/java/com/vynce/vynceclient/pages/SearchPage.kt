@@ -27,7 +27,7 @@ object SearchPage {
         return when {
             renderer.isSong -> {
                 SongItem(
-                    id = renderer.playlistItemData?.videoId ?: return null,
+                    id = renderer.videoId ?: return null,
                     title = renderer.flexColumns.firstOrNull()
                         ?.musicResponsiveListItemFlexColumnRenderer?.text?.runs
                         ?.firstOrNull()?.text ?: return null,
@@ -47,7 +47,8 @@ object SearchPage {
                     thumbnail = renderer.thumbnail?.musicThumbnailRenderer?.getThumbnailUrl() ?: return null,
                     explicit = renderer.badges?.find {
                         it.musicInlineBadgeRenderer?.icon?.iconType == "MUSIC_EXPLICIT_BADGE"
-                    } != null
+                    } != null,
+                    musicVideoType = renderer.musicVideoType
                 )
             }
             renderer.isArtist -> {
@@ -113,6 +114,9 @@ object SearchPage {
         }
     }
 }
+
+
+
 
 
 

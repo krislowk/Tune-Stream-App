@@ -4,6 +4,7 @@ import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
@@ -13,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -66,6 +68,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
@@ -152,6 +155,7 @@ fun SettingsScreen(
             .verticalScroll(rememberScrollState())
             .padding(16.dp)
             .padding(bottom = 100.dp)
+            .statusBarsPadding()
     ) {
         Text(
             text = "Settings",
@@ -537,16 +541,23 @@ fun CookieLoginDialog(onDismiss: () -> Unit, onLogin: (String) -> Unit) {
 
 @Composable
 fun SettingsSection(title: String, content: @Composable ColumnScope.() -> Unit) {
-    Column(modifier = Modifier.padding(bottom = 16.dp)) {
+    Column(modifier = Modifier.padding(bottom = 24.dp)) {
         Text(
-            text = title,
-            style = VynceTheme.typography.label.copy(fontWeight = FontWeight.Bold),
-            color = VynceTheme.colors.primary,
-            modifier = Modifier.padding(start = 8.dp, bottom = 12.dp)
+            text = title.uppercase(),
+            style = VynceTheme.typography.label.copy(
+                fontWeight = FontWeight.Black,
+                letterSpacing = 1.5.sp,
+                fontSize = 11.sp
+            ),
+            color = VynceTheme.colors.primary.copy(alpha = 0.8f),
+            modifier = Modifier.padding(start = 12.dp, bottom = 12.dp)
         )
-        Card(modifier = Modifier.fillMaxWidth(),
-            //cornerRadius = 24.dp
-            ) {
+        androidx.compose.material3.Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(28.dp),
+            color = VynceTheme.colors.surface.copy(alpha = 0.5f),
+            border = androidx.compose.foundation.BorderStroke(1.dp, VynceTheme.colors.textPrimary.copy(alpha = 0.05f))
+        ) {
             Column(modifier = Modifier.padding(vertical = 8.dp)) {
                 content()
             }
@@ -573,21 +584,46 @@ fun SettingsToggleItem(
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(imageVector = icon, contentDescription = null, tint = VynceTheme.colors.textSecondary)
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(VynceTheme.colors.textPrimary.copy(alpha = 0.05f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon, 
+                contentDescription = null, 
+                tint = VynceTheme.colors.textPrimary.copy(alpha = 0.7f),
+                modifier = Modifier.size(20.dp)
+            )
+        }
         Spacer(modifier = Modifier.width(16.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(text = title, style = VynceTheme.typography.body.copy(fontWeight = FontWeight.Medium))
+            Text(
+                text = title, 
+                style = VynceTheme.typography.body.copy(fontWeight = FontWeight.SemiBold, fontSize = 15.sp),
+                color = VynceTheme.colors.textPrimary
+            )
             if (subtitle != null) {
-                Text(text = subtitle, style = VynceTheme.typography.label)
+                Text(
+                    text = subtitle, 
+                    style = VynceTheme.typography.label.copy(fontSize = 12.sp),
+                    color = VynceTheme.colors.textSecondary.copy(alpha = 0.6f)
+                )
             }
         }
         Switch(
             checked = checked,
             onCheckedChange = { onToggle(it) },
             colors = SwitchDefaults.colors(
-                checkedThumbColor = VynceTheme.colors.primary,
-                checkedTrackColor = VynceTheme.colors.primary.copy(alpha = 0.5f)
-            )
+                checkedThumbColor = Color.White,
+                checkedTrackColor = VynceTheme.colors.primary,
+                uncheckedThumbColor = VynceTheme.colors.textSecondary.copy(alpha = 0.5f),
+                uncheckedTrackColor = VynceTheme.colors.textPrimary.copy(alpha = 0.1f),
+                uncheckedBorderColor = Color.Transparent
+            ),
+            modifier = Modifier.scale(0.8f)
         )
     }
 }
@@ -601,13 +637,39 @@ fun SettingsSelectItem(title: String, subtitle: String, icon: ImageVector, onCli
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(imageVector = icon, contentDescription = null, tint = VynceTheme.colors.textSecondary)
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(VynceTheme.colors.textPrimary.copy(alpha = 0.05f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon, 
+                contentDescription = null, 
+                tint = VynceTheme.colors.textPrimary.copy(alpha = 0.7f),
+                modifier = Modifier.size(20.dp)
+            )
+        }
         Spacer(modifier = Modifier.width(16.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(text = title, style = VynceTheme.typography.body.copy(fontWeight = FontWeight.Medium))
-            Text(text = subtitle, style = VynceTheme.typography.label, color = VynceTheme.colors.primary)
+            Text(
+                text = title, 
+                style = VynceTheme.typography.body.copy(fontWeight = FontWeight.SemiBold, fontSize = 15.sp),
+                color = VynceTheme.colors.textPrimary
+            )
+            Text(
+                text = subtitle, 
+                style = VynceTheme.typography.label.copy(fontSize = 12.sp), 
+                color = VynceTheme.colors.primary.copy(alpha = 0.8f)
+            )
         }
-        Icon(imageVector = Icons.Default.ChevronRight, contentDescription = null, tint = VynceTheme.colors.textSecondary)
+        Icon(
+            imageVector = Icons.Default.ChevronRight, 
+            contentDescription = null, 
+            tint = VynceTheme.colors.textSecondary.copy(alpha = 0.3f),
+            modifier = Modifier.size(20.dp)
+        )
     }
 }
 
@@ -620,15 +682,41 @@ fun SettingsActionItem(title: String, subtitle: String? = null, icon: ImageVecto
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(imageVector = icon, contentDescription = null, tint = VynceTheme.colors.textSecondary)
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(VynceTheme.colors.textPrimary.copy(alpha = 0.05f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon, 
+                contentDescription = null, 
+                tint = VynceTheme.colors.textPrimary.copy(alpha = 0.7f),
+                modifier = Modifier.size(20.dp)
+            )
+        }
         Spacer(modifier = Modifier.width(16.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(text = title, style = VynceTheme.typography.body.copy(fontWeight = FontWeight.Medium))
+            Text(
+                text = title, 
+                style = VynceTheme.typography.body.copy(fontWeight = FontWeight.SemiBold, fontSize = 15.sp),
+                color = VynceTheme.colors.textPrimary
+            )
             if (subtitle != null) {
-                Text(text = subtitle, style = VynceTheme.typography.label)
+                Text(
+                    text = subtitle, 
+                    style = VynceTheme.typography.label.copy(fontSize = 12.sp),
+                    color = VynceTheme.colors.textSecondary.copy(alpha = 0.6f)
+                )
             }
         }
-        Icon(imageVector = Icons.Default.ChevronRight, contentDescription = null, tint = VynceTheme.colors.textSecondary)
+        Icon(
+            imageVector = Icons.Default.ChevronRight, 
+            contentDescription = null, 
+            tint = VynceTheme.colors.textSecondary.copy(alpha = 0.3f),
+            modifier = Modifier.size(20.dp)
+        )
     }
 }
 
@@ -760,6 +848,9 @@ fun LibraryManagementSheet(
         }
     }
 }
+
+
+
 
 
 

@@ -79,12 +79,14 @@ data class AlbumPage(
             return songs ?: emptyList()
         }
 
-        fun getSong(renderer: MusicResponsiveListItemRenderer, album: AlbumItem? = null): SongItem? {
+        fun getSong(renderer: MusicResponsiveListItemRenderer, album: AlbumItem? = null, playlistId: String? = null): SongItem? {
             // Extract library tokens using the new method that properly handles multiple toggle items
             val libraryTokens = PageHelper.extractLibraryTokensFromMenuItems(renderer.menu?.menuRenderer?.items)
 
+            val videoId = renderer.playlistItemData?.videoId ?: renderer.videoId ?: return null
+
             return SongItem(
-                id = renderer.playlistItemData?.videoId ?: return null,
+                id = videoId,
                 title = PageHelper.extractRuns(renderer.flexColumns, "MUSIC_VIDEO").firstOrNull()?.text ?: return null,
                 artists = PageHelper.extractRuns(renderer.flexColumns, "MUSIC_PAGE_TYPE_ARTIST").map{
                     Artist(
@@ -112,11 +114,18 @@ data class AlbumPage(
                     it.musicInlineBadgeRenderer?.icon?.iconType == "MUSIC_EXPLICIT_BADGE"
                 } != null,
                 libraryAddToken = libraryTokens.addToken,
-                libraryRemoveToken = libraryTokens.removeToken
+                libraryRemoveToken = libraryTokens.removeToken,
+                endpoint = com.vynce.vynceclient.models.WatchEndpoint(
+                    videoId = videoId,
+                    playlistId = playlistId ?: album?.playlistId
+                )
             )
         }
     }
 }
+
+
+
 
 
 

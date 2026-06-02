@@ -1,6 +1,5 @@
 package com.vynce.music.ui.screens.library
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -27,12 +26,12 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SearchBar
 import androidx.compose.material3.SearchBarDefaults
@@ -96,18 +95,22 @@ fun LibraryScreen(
 
     Scaffold(
         topBar = {
-            Column(modifier = Modifier.background(colors.background)) {
+            Column(
+                modifier = Modifier
+                    .background(colors.background)
+                    .statusBarsPadding()
+            ) {
+                val searchBarColors = SearchBarDefaults.colors(
+                    containerColor = colors.surface,
+                )
+
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .statusBarsPadding()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                        .padding(horizontal = if (expanded) 0.dp else 16.dp)
+                        .padding(top = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    val searchBarColors = SearchBarDefaults.colors(
-                        containerColor = colors.surface,
-                    )
-                    
                     SearchBar(
                         inputField = {
                             SearchBarDefaults.InputField(
@@ -116,12 +119,18 @@ fun LibraryScreen(
                                 onSearch = { expanded = false },
                                 expanded = expanded,
                                 onExpandedChange = { expanded = it },
-                                placeholder = { Text("Search library", color = colors.textSecondary) },
+                                placeholder = { 
+                                    Text(
+                                        "Search library", 
+                                        color = colors.textSecondary.copy(alpha = 0.5f),
+                                        style = VynceTheme.typography.body.copy(fontSize = 15.sp)
+                                    ) 
+                                },
                                 leadingIcon = {
                                     Icon(
                                         Icons.Default.Search,
                                         contentDescription = null,
-                                        tint = colors.textPrimary
+                                        tint = colors.textPrimary.copy(alpha = 0.7f)
                                     )
                                 },
                                 trailingIcon = {
@@ -143,17 +152,54 @@ fun LibraryScreen(
                         modifier = Modifier.weight(1f),
                         colors = searchBarColors
                     ) {
-                        // Optional: Results list inside SearchBar if we want it to overlay
+                        // Results list overlay
                     }
 
-                    Spacer(Modifier.width(8.dp))
+                    if (!expanded) {
+                        Spacer(Modifier.width(8.dp))
+                        IconButton(onClick = onHistoryClick) {
+                            Icon(
+                                imageVector = Icons.Default.History,
+                                contentDescription = "History",
+                                tint = colors.textPrimary.copy(alpha = 0.7f)
+                            )
+                        }
+                    }
+                }
 
-                    IconButton(onClick = onHistoryClick) {
-                        Icon(
-                            imageVector = Icons.Default.History,
-                            contentDescription = "History",
-                            tint = colors.textPrimary
-                        )
+                if (!expanded) {
+                    // Category Tabs (Modern Chip style)
+                    LazyRow(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 12.dp, bottom = 8.dp),
+                        contentPadding = PaddingValues(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(tabs.size) { index ->
+                            val filter = tabs[index]
+                            val selected = selectedTab == filter
+                            FilterChip(
+                                selected = selected,
+                                onClick = { viewModel.onTabSelected(filter) },
+                                label = { 
+                                    Text(
+                                        text = tabNames[index],
+                                        style = VynceTheme.typography.label.copy(
+                                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
+                                        )
+                                    ) 
+                                },
+                                shape = RoundedCornerShape(12.dp),
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = colors.primary,
+                                    selectedLabelColor = colors.onPrimary,
+                                    containerColor = colors.surface,
+                                    labelColor = colors.textSecondary
+                                ),
+                                border = null
+                            )
+                        }
                     }
                 }
             }
@@ -164,40 +210,6 @@ fun LibraryScreen(
                 .padding(innerPadding)
                 .fillMaxSize()
         ) {
-            // Category Tabs (Outlined style)
-            LazyRow(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp),
-                contentPadding = PaddingValues(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(tabs.size) { index ->
-                    val filter = tabs[index]
-                    val selected = selectedTab == filter
-                    OutlinedButton(
-                        onClick = { viewModel.onTabSelected(filter) },
-                        shape = RoundedCornerShape(20.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            containerColor = if (selected) colors.primary.copy(alpha = 0.1f) else Color.Transparent,
-                            contentColor = if (selected) colors.primary else colors.textSecondary
-                        ),
-                        border = BorderStroke(
-                            width = if (selected) 1.5.dp else 1.dp,
-                            color = if (selected) colors.primary else colors.glassBorder
-                        ),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
-                    ) {
-                        Text(
-                            text = tabNames[index],
-                            style = VynceTheme.typography.label.copy(
-                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
-                            )
-                        )
-                    }
-                }
-            }
-
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(bottom = 88.dp)
@@ -208,8 +220,22 @@ fun LibraryScreen(
                     is LibraryUiState.Empty -> item { EmptyState(tabNames[tabs.indexOf(selectedTab)]) }
                     is LibraryUiState.Error -> item { ErrorState(state.message) }
                     is LibraryUiState.SearchEmpty -> item {
-                        Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                            Text("No results found", color = VynceTheme.colors.textSecondary)
+                        Column(
+                            modifier = Modifier.fillMaxWidth().padding(top = 64.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Icon(
+                                Icons.Default.Search,
+                                contentDescription = null,
+                                modifier = Modifier.size(64.dp),
+                                tint = colors.textSecondary.copy(alpha = 0.2f)
+                            )
+                            Spacer(Modifier.height(16.dp))
+                            Text(
+                                "No results found for \"$searchQuery\"",
+                                color = colors.textSecondary.copy(alpha = 0.6f),
+                                style = VynceTheme.typography.body
+                            )
                         }
                     }
                     is LibraryUiState.Success -> {
@@ -435,6 +461,9 @@ fun ErrorState(message: String) {
         Text("Error: $message", color = Color.Red)
     }
 }
+
+
+
 
 
 

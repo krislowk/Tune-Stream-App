@@ -56,7 +56,6 @@ import androidx.media3.common.util.UnstableApi
 import androidx.navigation.compose.rememberNavController
 import com.vynce.music.navigation.NavGraph
 import com.vynce.music.repository.PreferenceRepository
-import com.vynce.music.utils.SyncUtils
 import com.vynce.music.ui.components.BottomBar
 import com.vynce.music.ui.components.BottomSheet
 import com.vynce.music.ui.components.collapsedAnchor
@@ -66,6 +65,7 @@ import com.vynce.music.ui.screens.player.MiniPlayer
 import com.vynce.music.ui.screens.player.PlayerScreen
 import com.vynce.music.ui.screens.player.PlayerViewModel
 import com.vynce.music.ui.theme.VynceTheme
+import com.vynce.music.utils.SyncUtils
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
@@ -224,7 +224,7 @@ fun VynceApp() {
                     playerViewModel = playerViewModel,
                     modifier = Modifier.padding(
                         top = (navPadding.calculateTopPadding() - 30.dp).coerceAtLeast(0.dp),
-                        bottom = animatedBottomPadding
+
                     )
                 )
 
@@ -270,4 +270,7 @@ fun VynceApp() {
         }
     }
 }
+
+
+
 

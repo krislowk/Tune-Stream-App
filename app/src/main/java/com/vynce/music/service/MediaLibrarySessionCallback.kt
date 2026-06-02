@@ -23,6 +23,8 @@ import com.vynce.music.utils.toMediaItem
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.guava.future
 import kotlinx.coroutines.withContext
@@ -46,39 +48,39 @@ class MediaLibrarySessionCallback(
         return scope.future {
             val audioQuality = getPreferredAudioQuality()
             
-            // Only resolve URIs immediately for the first item being added or if it's a single item.
-            // For subsequent items in a batch, we resolve them lazily in the MusicService
-            // to avoid fetching many URLs at once, which leads to "fetching without stopping" behavior.
+            // Resolve URIs in parallel for the first few items to ensure smooth start
             val resolvedItems = mediaItems.mapIndexed { index, item ->
-                val uri = item.localConfiguration?.uri
-                val needsResolution = (uri == null || uri == android.net.Uri.EMPTY) && index == 0
-                
-                if (needsResolution) {
-                    val videoId = item.mediaId
-                    val playlistId = item.mediaMetadata.extras?.getString("playlist_id")
-                    val playbackData = getPlaybackData(videoId, playlistId, audioQuality)
+                async {
+                    val uri = item.localConfiguration?.uri
+                    val needsResolution = (uri == null || uri == android.net.Uri.EMPTY) && index < 2
+                    
+                    if (needsResolution) {
+                        val videoId = item.mediaId
+                        val playlistId = item.mediaMetadata.extras?.getString("playlist_id")
+                        val playbackData = getPlaybackData(videoId, playlistId, audioQuality)
 
-                    if (playbackData?.streamUrl != null) {
-                        val extras = item.mediaMetadata.extras?.let { Bundle(it) } ?: Bundle()
-                        playbackData.audioConfig?.loudnessDb?.let {
-                            extras.putDouble("loudness_db", it)
+                        if (playbackData?.streamUrl != null) {
+                            val extras = item.mediaMetadata.extras?.let { Bundle(it) } ?: Bundle()
+                            playbackData.audioConfig?.loudnessDb?.let {
+                                extras.putDouble("loudness_db", it)
+                            }
+
+                            item.buildUpon()
+                                .setUri(playbackData.streamUrl.toUri())
+                                .setMediaMetadata(
+                                    item.mediaMetadata.buildUpon()
+                                        .setExtras(extras)
+                                        .build()
+                                )
+                                .build()
+                        } else {
+                            item
                         }
-
-                        item.buildUpon()
-                            .setUri(playbackData.streamUrl.toUri())
-                            .setMediaMetadata(
-                                item.mediaMetadata.buildUpon()
-                                    .setExtras(extras)
-                                    .build()
-                            )
-                            .build()
                     } else {
                         item
                     }
-                } else {
-                    item
                 }
-            }
+            }.awaitAll()
             resolvedItems.toMutableList()
         }
     }
@@ -101,7 +103,8 @@ class MediaLibrarySessionCallback(
             videoId = videoId,
             playlistId = playlistId,
             audioQuality = audioQuality,
-            connectivityManager = connectivityManager
+            connectivityManager = connectivityManager,
+            databaseDao = songRepository.databaseDao
         ).getOrNull()
         
         println("Resolved stream URL for $videoId: ${playbackData?.streamUrl}, loudness: ${playbackData?.audioConfig?.loudnessDb}")
@@ -169,6 +172,9 @@ class MediaLibrarySessionCallback(
             .build()
     }
 }
+
+
+
 
 
 

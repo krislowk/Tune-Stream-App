@@ -9,3 +9,6 @@ data class AccountMenuBody(
     val deviceTheme: String = "DEVICE_THEME_SELECTED",
     val userInterfaceTheme: String = "USER_INTERFACE_THEME_DARK",
 )
+
+
+

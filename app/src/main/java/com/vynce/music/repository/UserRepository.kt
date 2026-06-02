@@ -37,7 +37,7 @@ class UserRepository @Inject constructor(
         if (cookie.isNullOrBlank()) return
 
         // Ensure visitor data is present
-        if (YouTube.visitorData?.isBlank() == true || YouTube.visitorData == YouTube.DEFAULT_VISITOR_DATA) {
+        if (YouTube.visitorData.isNullOrBlank() || YouTube.visitorData == YouTube.DEFAULT_VISITOR_DATA) {
             YouTube.visitorData().onSuccess { data ->
                 preferenceRepository.saveVisitorData(data)
             }
@@ -74,6 +74,9 @@ class UserRepository @Inject constructor(
         databaseDao.deleteUser(User(email = ""))
     }
 }
+
+
+
 
 
 

@@ -51,7 +51,9 @@ data class RelatedPage(
                 thumbnail = renderer.thumbnail?.musicThumbnailRenderer?.getThumbnailUrl() ?: return null,
                 explicit = renderer.badges?.find {
                     it.musicInlineBadgeRenderer?.icon?.iconType == "MUSIC_EXPLICIT_BADGE"
-                } != null
+                } != null,
+                endpoint = renderer.navigationEndpoint?.watchEndpoint
+                    ?: renderer.overlay?.musicItemThumbnailOverlayRenderer?.content?.musicPlayButtonRenderer?.playNavigationEndpoint?.watchEndpoint
             )
         }
 
@@ -110,6 +112,9 @@ data class RelatedPage(
         }
     }
 }
+
+
+
 
 
 

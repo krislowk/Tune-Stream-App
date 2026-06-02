@@ -70,3 +70,6 @@ class NetworkConnectivityManager @Inject constructor(
     val isActiveNetworkMetered: Boolean
         get() = connectivityManager.isActiveNetworkMetered
 }
+
+
+

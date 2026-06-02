@@ -26,19 +26,19 @@ import androidx.compose.ui.unit.dp
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SwipeableItem(
-    onSwipeRight: () -> Unit,
-    onSwipeLeft: () -> Unit,
+    onSwipeRight: (() -> Unit)? = null,
+    onSwipeLeft: (() -> Unit)? = null,
     content: @Composable () -> Unit
 ) {
     val dismissState = rememberSwipeToDismissBoxState(
         confirmValueChange = {
             when (it) {
                 SwipeToDismissBoxValue.StartToEnd -> {
-                    onSwipeRight()
+                    onSwipeRight?.invoke()
                     false // Don't actually dismiss the UI item, just perform action
                 }
                 SwipeToDismissBoxValue.EndToStart -> {
-                    onSwipeLeft()
+                    onSwipeLeft?.invoke()
                     false // Don't actually dismiss the UI item
                 }
                 SwipeToDismissBoxValue.Settled -> false
@@ -48,6 +48,8 @@ fun SwipeableItem(
 
     SwipeToDismissBox(
         state = dismissState,
+        enableDismissFromStartToEnd = onSwipeRight != null,
+        enableDismissFromEndToStart = onSwipeLeft != null,
         backgroundContent = {
             SwipeBackground(dismissState)
         },
@@ -107,6 +109,9 @@ private fun SwipeBackground(dismissState: SwipeToDismissBoxState) {
         }
     }
 }
+
+
+
 
 
 

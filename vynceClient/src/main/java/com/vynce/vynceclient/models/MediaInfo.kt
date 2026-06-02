@@ -13,15 +13,3 @@ data class MediaInfo(
     val like: Int? = null,
     val dislike: Int? = null,
 )
-
-
-
-
-
-
-
-
-
-
-
-

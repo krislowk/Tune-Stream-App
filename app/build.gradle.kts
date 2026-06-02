@@ -71,7 +71,6 @@ dependencies {
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
-    implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.material.icons.extended)
@@ -87,12 +86,7 @@ dependencies {
 
     implementation(libs.hilt.android)
     implementation(libs.hilt.lifecycle.viewmodel.compose)
-    implementation(libs.androidx.compose.runtime)
-    implementation(libs.androidx.ui.tooling.preview)
-    implementation(libs.androidx.material3)
-    debugImplementation(libs.androidx.ui.tooling)
     ksp(libs.hilt.compiler)
-    implementation(libs.androidx.compose.foundation)
 
     implementation(libs.ktor.client.core)
     implementation(libs.ktor.client.cio)
@@ -108,8 +102,6 @@ dependencies {
     implementation(libs.androidx.paging.runtime)
     implementation(libs.androidx.paging.compose)
     ksp(libs.androidx.room.compiler)
-    implementation(libs.gravatar)
-    implementation(libs.gravatar.ui)
     implementation(libs.androidx.core.splashscreen)
     implementation(libs.reorderable)
 
