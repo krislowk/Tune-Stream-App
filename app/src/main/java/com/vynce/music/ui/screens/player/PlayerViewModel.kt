@@ -14,6 +14,7 @@ import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.MoreExecutors
 import com.vynce.music.db.MusicDatabase
 import com.vynce.music.db.entities.LyricsEntity
+import com.vynce.music.BuildConfig
 import com.vynce.music.lyrics.GeminiService
 import com.vynce.music.lyrics.LyricsEntry
 import com.vynce.music.lyrics.LyricsParser
@@ -346,7 +347,7 @@ class PlayerViewModel @Inject constructor(
                 GeminiService.generateLyrics(
                     title = title,
                     artist = artist,
-                    apiKey = "AIzaSyCbtMgl7JO0qr7tfyi14723oPUyryfJDzA", // TODO: Get from preferences
+                    apiKey = BuildConfig.PLAYER_API_KEY,
                     model = "gemini-3.5-flash"
                 ).getOrNull()
             }
@@ -379,7 +380,7 @@ class PlayerViewModel @Inject constructor(
                     title = title,
                     artist = artist,
                     durationSeconds = duration,
-                    apiKey = "AIzaSyCbtMgl7JO0qr7tfyi14723oPUyryfJDzA", // TODO: Get from preferences
+                    apiKey = BuildConfig.PLAYER_API_KEY,
                     model = "gemini-1.5-flash"
                 ).getOrNull() ?: lyricsText
             }

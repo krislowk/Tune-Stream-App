@@ -31,6 +31,7 @@ room = "2.8.4"
 paging = "3.4.2"
 reorderable = "3.0.0"
 mockito = "5.23.0"
+secrets = "2.0.1"
 
 [libraries]
 androidx-compose-material-icons-extended = { module = "androidx.compose.material:material-icons-extended", version.ref = "materialIconsExtended" }
@@ -91,4 +92,5 @@ ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
 jetbrains-kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "jetbrainsKotlinJvm" }
 androidx-room = { id = "androidx.room", version.ref = "room" }
+secrets = { id = "com.google.android.libraries.mapsplatform.secrets-gradle-plugin", version.ref = "secrets" }
 

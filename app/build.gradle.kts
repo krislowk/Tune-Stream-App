@@ -8,6 +8,7 @@ plugins {
     alias(libs.plugins.ksp)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.androidx.room)
+    alias(libs.plugins.secrets)
 }
 
 room {
@@ -28,7 +29,7 @@ android {
         //noinspection OldTargetApi
         targetSdk = 36
         versionCode = 2
-        versionName = "0.1.0-alpha"
+        versionName = "0.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         val properties = Properties()

@@ -141,6 +141,12 @@ object YouTube {
             vynceclient.useLoginForBrowse = value
         }
 
+    var apiKey: String?
+        get() = vynceclient.apiKey
+        set(value) {
+            vynceclient.apiKey = value
+        }
+
     suspend fun searchSuggestions(query: String): Result<SearchSuggestions> =
         runCatching {
             val response = vynceclient.getSearchSuggestions(WEB_REMIX, query).body<GetSearchSuggestionsResponse>()

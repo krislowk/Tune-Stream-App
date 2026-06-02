@@ -59,6 +59,8 @@ import kotlin.io.encoding.ExperimentalEncodingApi
 class InnerTube {
     private var httpClient = createClient()
 
+    var apiKey: String? = null
+
     var locale = YouTubeLocale(
         gl = Locale.getDefault().country,
         hl = Locale.getDefault().toLanguageTag()
@@ -391,7 +393,7 @@ class InnerTube {
         videoId: String,
     ) = withRetry {
         httpClient.post("https://music.youtube.com/youtubei/v1/get_transcript") {
-            parameter("key", "AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX3")
+            parameter("key", apiKey ?: "AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX3")
             headers {
                 append("Content-Type", "application/json")
             }
@@ -804,7 +806,7 @@ class InnerTube {
                     append("Authorization", "SAPISIDHASH ${currentTime}_${sapisidHash}")
                 }
             }
-            parameter("key", "AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX3")
+            parameter("key", apiKey ?: "AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX3")
             parameter("prettyPrint", false)
             setBody(requestBody)
         }
