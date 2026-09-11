@@ -33,10 +33,10 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         val properties = Properties()
-        properties.load(FileInputStream(project.rootProject.file("local.properties")))
         val gravatarKey = properties["gravatar.api.key"]?.toString()?.replace("\"", "") ?: ""
         buildConfigField("String", "GRAVATAR_API_KEY", "\"$gravatarKey\"")
-    }val properties = Properties()
+    } 
+        val properties = Properties()
 val localProps = project.rootProject.file("local.properties")
 if (localProps.exists()) {
     FileInputStream(localProps).use { properties.load(it) }
