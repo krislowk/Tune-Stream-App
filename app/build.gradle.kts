@@ -36,7 +36,12 @@ android {
         properties.load(FileInputStream(project.rootProject.file("local.properties")))
         val gravatarKey = properties["gravatar.api.key"]?.toString()?.replace("\"", "") ?: ""
         buildConfigField("String", "GRAVATAR_API_KEY", "\"$gravatarKey\"")
-    }
+    }val properties = Properties()
+val localProps = project.rootProject.file("local.properties")
+if (localProps.exists()) {
+    FileInputStream(localProps).use { properties.load(it) }
+}
+val gravatarKey = properties["gravatar.api.key"]?.toString()?.replace("\"", "") ?: ""
 
     buildTypes {
         release {
